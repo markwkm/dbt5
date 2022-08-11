@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * 22 July 2006
  */
@@ -36,11 +36,10 @@ bool CSendToMarketTest::SendToMarket(TTradeRequest &trade_mes)
 	// Initialize MEE - Market Exchange Emulator class
 	CMEESUTtest m_CMEESUT(NULL, iConfiguredCustomerCount, iActiveCustomerCount,
 			szInDir);
-	CInputFiles inputFiles;
-	inputFiles.Initialize(eDriverEGenLoader, iConfiguredCustomerCount,
-			iActiveCustomerCount, szInDir);
+	const DataFileManager *dfm = new DataFileManager(szInDir,
+			iConfiguredCustomerCount, iActiveCustomerCount);
 
-	CMEE m_CMEE(0, &m_CMEESUT, &log, inputFiles, 1);
+	CMEE m_CMEE(0, &m_CMEESUT, &log, *dfm, 1);
 	m_CMEE.SetBaseTime();
 	
 	cout<<endl<<"Sending to Market a ";

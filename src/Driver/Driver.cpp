@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * 03 August 2006
  */
@@ -28,8 +28,8 @@ CDriver::CDriver(char *szInDir,
 	snprintf(filename, iMaxPath, "%s/Driver.log", outputDirectory);
 	m_pLog = new CEGenLogger(eDriverEGenLoader, 0, filename, &m_fmt);
 	m_pDriverCETxnSettings = new TDriverCETxnSettings;
-	m_InputFiles.Initialize(eDriverEGenLoader, iConfiguredCustomerCount,
-			iActiveCustomerCount, szInDir);
+	dfm = new DataFileManager(szInDir, iConfiguredCustomerCount,
+			iActiveCustomerCount);
 
 	snprintf(filename, iMaxPath, "%s/Driver_Error.log", outputDirectory);
 	m_fLog.open(filename, ios::out);
@@ -57,15 +57,15 @@ CDriver::CDriver(char *szInDir,
 
 	// initialize DM - Data Maintenance
 	if (iSeed == 0) {
-		m_pCDM = new CDM(m_pCDMSUT, m_pLog, m_InputFiles,
-				iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor,
-				iDaysOfInitialTrades, pthread_self());
+		m_pCDM = new CDM(m_pCDMSUT, m_pLog, *dfm, iConfiguredCustomerCount,
+				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades,
+				pthread_self());
 	} else {
 		// Specifying the random number generator seed is considered an
 		// invalid run.
-		m_pCDM = new CDM(m_pCDMSUT, m_pLog, m_InputFiles,
-				iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor,
-				iDaysOfInitialTrades, pthread_self(), iSeed);
+		m_pCDM = new CDM(m_pCDMSUT, m_pLog, *dfm, iConfiguredCustomerCount,
+				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades,
+				pthread_self(), iSeed);
 	}
 }
 
@@ -186,7 +186,7 @@ void CDriver::runTest(int iSleep, int iTestDuration)
 	stop_time = time(NULL) + iTestDuration + threads_start_time;
 
 	CDateTime dtAux;
-	dtAux.SetToCurrent();
+	dtAux.Set();
 
 	cout << "Test is starting at " << dtAux.ToStr(02) << endl <<
 			"Estimated duration of ramp-up: " << threads_start_time <<

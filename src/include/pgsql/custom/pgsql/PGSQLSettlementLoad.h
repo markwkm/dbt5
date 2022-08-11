@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -27,13 +27,13 @@ public:
 			: CPGSQLLoader<SETTLEMENT_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
-		se_cash_due_date = next_record->SE_CASH_DUE_DATE;
+	void WriteNextRecord(const SETTLEMENT_ROW& next_record) {
+		se_cash_due_date = next_record.SE_CASH_DUE_DATE;
 		fprintf(p, "%" PRId64 "%c%s%c%s%c%.2f\n",
-				next_record->SE_T_ID, delimiter,
-				next_record->SE_CASH_TYPE, delimiter,
+				next_record.SE_T_ID, delimiter,
+				next_record.SE_CASH_TYPE, delimiter,
 				se_cash_due_date.ToStr(iDateTimeFmt), delimiter,
-				next_record->SE_AMT);
+				next_record.SE_AMT);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

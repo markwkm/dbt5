@@ -3,6 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006-2010 Rilson Nascimento
+ *               2022      Mark Wong
  *
  * This class represents the workload driver
  * 03 August 2006
@@ -12,7 +13,6 @@
 #define CUSTOMER_H
 
 #include "EGenLogger.h"
-#include "InputFlatFilesStructure.h"
 #include "locking.h"
 
 #include "CESUT.h"
@@ -24,7 +24,7 @@ class CCustomer
 	int m_iPacingDelay;
 	CLogFormatTab m_fmt;
 	CEGenLogger *m_pLog;
-	CInputFiles m_InputFiles;
+	const DataFileManager *dfm;
 	CCESUT * m_pCCESUT;
 	CCE * m_pCCE;
 	PDriverCETxnSettings m_pDriverCETxnSettings;

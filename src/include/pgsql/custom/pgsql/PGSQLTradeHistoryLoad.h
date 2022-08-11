@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -27,13 +27,13 @@ public:
 			: CPGSQLLoader<TRADE_HISTORY_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
-		th_dts = next_record->TH_DTS;
+	void WriteNextRecord(const TRADE_HISTORY_ROW& next_record) {
+		th_dts = next_record.TH_DTS;
 
 		fprintf(p, "%" PRId64 "%c%s%c%s\n",
-				next_record->TH_T_ID, delimiter,
+				next_record.TH_T_ID, delimiter,
 				th_dts.ToStr(iDateTimeFmt), delimiter,
-				next_record->TH_ST_ID);
+				next_record.TH_ST_ID);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

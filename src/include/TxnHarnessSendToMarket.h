@@ -3,6 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006-2010 Rilson Nascimento
+ *               2022      Mark Wong
  *
  * 06 July 2006
  */
@@ -11,7 +12,6 @@
 #define TXN_HARNESS_SENDTOMARKET_H
 
 #include "TxnHarnessSendToMarketInterface.h"
-#include "locking.h"
 
 #include "DBT5Consts.h"
 #include "CSocket.h"

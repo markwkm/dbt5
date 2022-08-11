@@ -23,12 +23,12 @@ Index: dbt5/egen/prj/Makefile.pgsql
 +# Platform specific defines
 +#CXX=
 +CCFLAGS=-std=c++98 -ggdb -I../../src/include/pgsql -I../inc
-+#LDFLAGS=
++LDFLAGS=-lpthread
 +#AR=
 +#ARFLAGS=
 +
 +# Application specific defines
-+APPDEFINES=-DCOMPILE_FLAT_FILE_LOAD -DCOMPILE_CUSTOM_LOAD -DPGSQL
++APPDEFINES=-DCOMPILE_FLAT_FILE_LOAD -DCOMPILE_CUSTOM_LOAD
 +
 +# Directory for source files
 +SRC = ../src

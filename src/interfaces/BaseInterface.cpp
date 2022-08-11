@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * 13 August 2006
  */
@@ -73,7 +73,7 @@ bool CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 
 	// record txn start time -- please, see TPC-E specification clause
 	// 6.2.1.3
-	StartTime.SetToCurrent();
+	StartTime.Set();
 
 	// send and wait for response
 	try {
@@ -111,7 +111,7 @@ bool CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 	}
 
 	// record txn end time
-	EndTime.SetToCurrent();
+	EndTime.Set();
 
 	// calculate txn response time
 	TxnTime.Set(0); // clear time

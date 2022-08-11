@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * 12 August 2006
  */
@@ -13,6 +13,7 @@
 
 #include "Driver.h"
 #include "DBT5Consts.h"
+#include "EGenLoader_stdafx.h"
 
 // Establish defaults for command line options
 char szBHaddr[iMaxHostname + 1] = "localhost"; // Brokerage House address

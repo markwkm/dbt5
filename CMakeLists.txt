@@ -32,12 +32,14 @@ IF (GETCONF_FOUND)
             OUTPUT_STRIP_TRAILING_WHITESPACE)
 ENDIF (GETCONF_FOUND)
 
+link_directories("${CMAKE_SOURCE_DIR}/egen/lib")
+
 #
 # Defining commonly used paths.
 #
 
 SET(EGENINC "${CMAKE_HOME_DIRECTORY}/egen/inc")
-SET(EGENSRC "${CMAKE_HOME_DIRECTORY}/egen/src")
+SET(UTILITIESINC "${CMAKE_HOME_DIRECTORY}/egen/Utilities/inc")
 
 SET(TXN src/transactions)
 SET(INTF src/interfaces)
@@ -100,109 +102,52 @@ SET(TXN_SOURCE ${DB_SOURCE}
 #
 
 ADD_EXECUTABLE(${DBT5_BROKERAGE_HOUSE}
-               ${EGENSRC}/DateTime
-               ${EGENSRC}/locking.cpp
                ${INTF}/CSocket.cpp
                ${INTF}/TxnHarnessSendToMarket.cpp
                ${TXN_SOURCE}
                ${BH}/BrokerageHouseMain.cpp
-               ${BH}/BrokerageHouse.cpp)
+               ${BH}/BrokerageHouse.cpp
+)
 
 ADD_EXECUTABLE(${DBT5_DRIVER}
                ${CE}/Driver.cpp
                ${CE}/DriverMain.cpp
                src/Customer/Customer.cpp
-               ${EGENSRC}/BaseLogger.cpp
-               ${EGENSRC}/EGenLogFormatterTab.cpp
-               ${EGENSRC}/CETxnMixGenerator.cpp
-               ${EGENSRC}/CETxnInputGenerator.cpp
-               ${EGENSRC}/ReadRowFunctions.cpp
-               ${EGENSRC}/InputFlatFilesStructure.cpp
-               ${EGENSRC}/error.cpp
-               ${EGENSRC}/AddressTable.cpp
-               ${EGENSRC}/EGenVersion.cpp
-               ${EGENSRC}/CustomerTable.cpp
-               ${EGENSRC}/CustomerSelection.cpp
-               ${EGENSRC}/Random.cpp
-               ${EGENSRC}/Person.cpp
-               ${EGENSRC}/DateTime.cpp
-               ${EGENSRC}/CE.cpp
-               ${EGENSRC}/DM.cpp
-               ${EGENSRC}/locking.cpp
-               ${EGENSRC}/MEE.cpp
-               ${EGENSRC}/MEETradingFloor.cpp
-               ${EGENSRC}/MEETickerTape.cpp
-               ${EGENSRC}/MEEPriceBoard.cpp
-               ${EGENSRC}/WheelTime.cpp
-               ${EGENSRC}/MEESecurity.cpp
                ${INTF}/CESUT.cpp
                ${INTF}/CSocket.cpp
                ${INTF}/DMSUT.cpp
-               ${INTF}/BaseInterface.cpp)
+               ${INTF}/BaseInterface.cpp
+)
 
 ADD_EXECUTABLE(${DBT5_MARKET_EXCHANGE}
-               ${EGENSRC}/ReadRowFunctions.cpp
-               ${EGENSRC}/BaseLogger.cpp
-               ${EGENSRC}/EGenLogFormatterTab.cpp
-               ${EGENSRC}/EGenVersion.cpp
-               ${EGENSRC}/error.cpp
                ${INTF}/CSocket.cpp
-               ${EGENSRC}/Random.cpp
-               ${EGENSRC}/DateTime.cpp
-               ${EGENSRC}/WheelTime.cpp
-               ${EGENSRC}/MEESecurity.cpp
-               ${EGENSRC}/MEEPriceBoard.cpp
-               ${EGENSRC}/MEETickerTape.cpp
-               ${EGENSRC}/MEETradingFloor.cpp
-               ${EGENSRC}/MEE.cpp
-               ${EGENSRC}/locking.cpp
-               ${EGENSRC}/InputFlatFilesStructure.cpp
                ${INTF}/MEESUT.cpp
                ${INTF}/BaseInterface.cpp
                ${ME}/MarketExchange.cpp
-               ${ME}/MarketExchangeMain.cpp)
+               ${ME}/MarketExchangeMain.cpp
+)
 
 ADD_EXECUTABLE(${DBT5_TEST_TXN}
- ${EGENSRC}/ReadRowFunctions.cpp
-                  ${EGENSRC}/BaseLogger.cpp
-                  ${EGENSRC}/EGenLogFormatterTab.cpp
-                  ${EGENSRC}/InputFlatFilesStructure.cpp
-                  ${EGENSRC}/error.cpp
-                  ${EGENSRC}/EGenVersion.cpp
-                  ${EGENSRC}/AddressTable.cpp
-                  ${EGENSRC}/CustomerTable.cpp
-                  ${EGENSRC}/CustomerSelection.cpp
-                  ${EGENSRC}/Random.cpp
-                  ${EGENSRC}/Person.cpp
-                  ${EGENSRC}/DateTime.cpp
-                  ${EGENSRC}/CETxnInputGenerator.cpp
-                  ${EGENSRC}/DM.cpp
-                  ${EGENSRC}/WheelTime.cpp
-                  ${EGENSRC}/MEESecurity.cpp
-                  ${EGENSRC}/MEEPriceBoard.cpp
-                  ${EGENSRC}/MEETickerTape.cpp
-                  ${EGENSRC}/MEETradingFloor.cpp
-                  ${EGENSRC}/MEE.cpp
-                  ${EGENSRC}/locking.cpp
-                  ${INTF}/MEESUTtest.cpp
-                  ${INTF}/DMSUTtest.cpp
-                  ${TXN_SOURCE}
-                  ${INTF}/BaseInterface.cpp
-                  ${INTF}/CESUT.cpp
-                  ${INTF}/CSocket.cpp
-                  ${INTF}/TxnHarnessSendToMarketTest.cpp
-                  ${INTF}/TxnHarnessSendToMarket.cpp
-                  ${BH}/BrokerageHouse.cpp
-                  src/TestTransactions/TestTxn.cpp)
+               ${INTF}/MEESUTtest.cpp
+               ${INTF}/DMSUTtest.cpp
+               ${TXN_SOURCE}
+               ${INTF}/BaseInterface.cpp
+               ${INTF}/CESUT.cpp
+               ${INTF}/CSocket.cpp
+               ${INTF}/TxnHarnessSendToMarketTest.cpp
+               ${INTF}/TxnHarnessSendToMarket.cpp
+               ${BH}/BrokerageHouse.cpp
+               src/TestTransactions/TestTxn.cpp
+)
 
 #
 # Set linker flags.
 #
 
-target_link_libraries (${DBT5_BROKERAGE_HOUSE} -lpthread)
-target_link_libraries (${DBT5_DRIVER} -lpthread)
-target_link_libraries (${DBT5_MARKET_EXCHANGE} -lpthread)
-target_link_libraries (${DBT5_TEST_TXN} -lpthread)
+target_link_libraries (${DBT5_BROKERAGE_HOUSE} -lpthread libegen.a)
+target_link_libraries (${DBT5_DRIVER} -lpthread libegen.a)
+target_link_libraries (${DBT5_MARKET_EXCHANGE} -lpthread libegen.a)
+target_link_libraries (${DBT5_TEST_TXN} -lpthread libegen.a)
 
 if (LIBPQ_FOUND)
     target_link_libraries (${DBT5_BROKERAGE_HOUSE} ${LIBPQ_LDFLAGS})
@@ -213,17 +158,18 @@ endif (LIBPQ_FOUND)
 # Set compiler flags.
 #
 
-set (CMAKE_CXX_FLAGS_DEBUG "-g -Wall")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${EGENINC} ${LFS_CFLAGS}")
+set (CMAKE_CXX_FLAGS_DEBUG "-g")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LFS_CFLAGS} -std=c++98")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${CMAKE_HOME_DIRECTORY}/src/include")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_FORMAT_MACROS")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS")
 
 set_source_files_properties(
-    ${DB_SOURCE}
-    src/interfaces/DMSUTtest.cpp
-    src/interfaces/MEESUTtest.cpp
-    src/interfaces/TxnHarnessSendToMarketTest.cpp
+    ${BH}/BrokerageHouse.cpp
+    ${BH}/BrokerageHouseMain.cpp
+    ${INTF}/TxnHarnessSendToMarket.cpp
+    ${TXN}/pgsql/DBConnection.cpp
+    src/TestTransactions/TestTxn.cpp
     src/transactions/BrokerVolumeDB.cpp
     src/transactions/CustomerPositionDB.cpp
     src/transactions/DataMaintenanceDB.cpp
@@ -231,15 +177,35 @@ set_source_files_properties(
     src/transactions/MarketWatchDB.cpp
     src/transactions/SecurityDetailDB.cpp
     src/transactions/TradeCleanupDB.cpp
-    src/transactions/TradeUpdateDB.cpp
     src/transactions/TradeLookupDB.cpp
-    src/transactions/TradeResultDB.cpp
     src/transactions/TradeOrderDB.cpp
+    src/transactions/TradeResultDB.cpp
     src/transactions/TradeStatusDB.cpp
+    src/transactions/TradeUpdateDB.cpp
     src/transactions/TxnBaseDB.cpp
-    src/BrokerageHouse/BrokerageHouse.cpp
-    src/TestTransactions/TestTxn.cpp
-    COMPILE_FLAGS "${DBCFLAGS}"
+    COMPILE_FLAGS "-I${EGENINC} -I${UTILITIESINC} ${DBCFLAGS}"
+)
+
+set_source_files_properties(
+    ${CE}/Driver.cpp
+    ${CE}/DriverMain.cpp
+    src/Customer/Customer.cpp
+    ${INTF}/BaseInterface.cpp
+    ${INTF}/CESUT.cpp
+    ${INTF}/DMSUT.cpp
+    ${INTF}/DMSUTtest.cpp
+    ${INTF}/MEESUT.cpp
+    ${INTF}/MEESUTtest.cpp
+    ${INTF}/TxnHarnessSendToMarket.cpp
+    ${INTF}/TxnHarnessSendToMarketTest.cpp
+    ${ME}/MarketExchange.cpp
+    ${ME}/MarketExchangeMain.cpp
+    COMPILE_FLAGS "-I${EGENINC} -I${UTILITIESINC}"
+)
+
+set_source_files_properties(
+    ${INTF}/CSocket.cpp
+    COMPILE_FLAGS "-I${UTILITIESINC}"
 )
 
 #
@@ -272,7 +238,7 @@ SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
 SET(CPACK_INSTALL_CMAKE_PROJECTS "")
 
-SET(CPACK_PACKAGE_DESCRIPTION_FILE "README")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "README.rst")
 SET(CPACK_RESOURCE_FILE_LICENSE "LICENSE")
 
 set (CPACK_SOURCE_IGNORE_FILES

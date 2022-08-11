@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -24,10 +24,10 @@ public:
 			: CPGSQLLoader<WATCH_ITEM_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
+	void WriteNextRecord(const WATCH_ITEM_ROW& next_record) {
 		fprintf(p, "%" PRId64 "%c%s\n",
-				next_record->WI_WL_ID, delimiter,
-				next_record->WI_S_SYMB);
+				next_record.WI_WL_ID, delimiter,
+				next_record.WI_S_SYMB);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * 30 July 2006
  */
@@ -112,10 +112,9 @@ CMarketExchange::CMarketExchange(char *szFileLoc,
 			&m_LogLock, &m_MixLock);
 
 	// Initialize MEE
-	CInputFiles inputFiles;
-	inputFiles.Initialize(eDriverEGenLoader, iConfiguredCustomerCount,
-			iActiveCustomerCount, szFileLoc);
-	m_pCMEE = new CMEE(0, m_pCMEESUT, m_pLog, inputFiles, 1);
+	const DataFileManager *dfm = new DataFileManager(szFileLoc,
+			iConfiguredCustomerCount, iActiveCustomerCount);
+	m_pCMEE = new CMEE(0, m_pCMEESUT, m_pLog, *dfm, 1);
 	m_pCMEE->SetBaseTime();
 }
 

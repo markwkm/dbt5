@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -24,15 +24,15 @@ public:
 			: CPGSQLLoader<EXCHANGE_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
+	void WriteNextRecord(const EXCHANGE_ROW& next_record) {
 		fprintf(p, "%s%c%s%c%d%c%d%c%d%c%s%c%" PRId64 "\n",
-				next_record->EX_ID, delimiter,
-				next_record->EX_NAME, delimiter,
-				next_record->EX_NUM_SYMB, delimiter,
-				next_record->EX_OPEN, delimiter,
-				next_record->EX_CLOSE, delimiter,
-				next_record->EX_DESC, delimiter,
-				next_record->EX_AD_ID);
+				next_record.EX_ID, delimiter,
+				next_record.EX_NAME, delimiter,
+				next_record.EX_NUM_SYMB, delimiter,
+				next_record.EX_OPEN, delimiter,
+				next_record.EX_CLOSE, delimiter,
+				next_record.EX_DESC, delimiter,
+				next_record.EX_AD_ID);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

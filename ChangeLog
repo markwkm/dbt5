@@ -4,11 +4,11 @@ vX.Y.Z
 - Fix various scripting bugs
 - Replace libpqxx with libpq
 - Fix PostgreSQL stored procedure bugs
-- Fix egen compiler warnings
 - Update cmake files
 - Add Docker scripts to build database
 - Update PostgreSQL build script set vacuum parallelism based on available
   processors and to perform a regular vacuum, instead of a full vacuum
+- Update to work with EGen v1.14.0
 
 v0.1.0
 

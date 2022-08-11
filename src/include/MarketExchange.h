@@ -2,8 +2,8 @@
  * This file is released under the terms of the Artistic License.  Please see
  * the file LICENSE, included in this package, for details.
  *
- * Copyright (C) 2006 Rilson Nascimento
- *               2010 Mark Wong
+ * Copyright (C) 2006      Rilson Nascimento
+ *               2010-2022 Mark Wong
  *
  * This class represents the Market Exchange driver
  * 30 July 2006
@@ -12,9 +12,6 @@
 #ifndef MARKET_EXCHANGE_H
 #define MARKET_EXCHANGE_H
 
-#include "EGenLogFormatterTab.h"
-#include "EGenLogger.h"
-#include "SecurityFile.h"
 #include "locking.h"
 
 #include "CSocket.h"

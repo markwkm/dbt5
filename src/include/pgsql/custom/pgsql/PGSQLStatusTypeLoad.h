@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -24,10 +24,10 @@ public:
 			: CPGSQLLoader<STATUS_TYPE_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
+	void WriteNextRecord(const STATUS_TYPE_ROW& next_record) {
 		fprintf(p, "%s%c%s\n",
-				next_record->ST_ID, delimiter,
-				next_record->ST_NAME);
+				next_record.ST_ID, delimiter,
+				next_record.ST_NAME);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

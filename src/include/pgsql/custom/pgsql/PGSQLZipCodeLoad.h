@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 //
@@ -24,11 +24,11 @@ public:
 			: CPGSQLLoader<ZIP_CODE_ROW>(szConnectStr, szTable) { };
 
 	// copy to the bound location inside this class first
-	virtual void WriteNextRecord(PT next_record) {
+	void WriteNextRecord(const ZIP_CODE_ROW& next_record) {
 		fprintf(p, "%s%c%s%c%s\n",
-				next_record->ZC_CODE, delimiter,
-				next_record->ZC_TOWN, delimiter,
-				next_record->ZC_DIV);
+				next_record.ZC_CODE, delimiter,
+				next_record.ZC_TOWN, delimiter,
+				next_record.ZC_DIV);
 		// FIXME: Have blind faith that this row of data was built correctly.
 		while (fgetc(p) != EOF) ;
 	}

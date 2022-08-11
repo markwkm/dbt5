@@ -3,7 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006      Rilson Nascimento
- *               2010      Mark Wong <markwkm@postgresql.org>
+ *               2010-2022 Mark Wong <markwkm@postgresql.org>
  */
 
 #ifndef PGSQLLOAD_H
@@ -11,8 +11,6 @@
 
 #include <stdio.h>
 
-//#include "../../EGenUtilities_stdafx.h"
-//#include "../../Table_Defs.h"
 #include "EGenBaseLoader_stdafx.h"
 
 #include "pgloader.h"

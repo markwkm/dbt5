@@ -3,6 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006-2010 Rilson Nascimento
+ *               2022      Mark Wong
  */
 
 #include <cstdlib>
@@ -479,15 +480,14 @@ int main(int argc, char* argv[])
 		CLogFormatTab fmt;
 		CEGenLogger log(eDriverEGenLoader, 0, "TxnTest.log", &fmt);
 	
-		CInputFiles	inputFiles;
-		inputFiles.Initialize(eDriverEGenLoader, iConfiguredCustomerCount,
-				iConfiguredCustomerCount, szInDir);
+		const DataFileManager *dfm = new DataFileManager(szInDir,
+				iConfiguredCustomerCount, iConfiguredCustomerCount);
 	
 		TDriverCETxnSettings	m_DriverCETxnSettings;
 	
-		CCETxnInputGenerator m_TxnInputGenerator(inputFiles,
-				iConfiguredCustomerCount, iActiveCustomerCount,
-				iScaleFactor, iDaysOfInitialTrades * HoursPerWorkDay, &log,
+		CCETxnInputGenerator m_TxnInputGenerator(*dfm, iConfiguredCustomerCount,
+				iActiveCustomerCount, iScaleFactor,
+				iDaysOfInitialTrades * HoursPerWorkDay, &log,
 				&m_DriverCETxnSettings);
 	
 		if (Seed == 0) 
@@ -502,12 +502,11 @@ int main(int argc, char* argv[])
 		// DM is used by Data-Maintenance and Trade-Cleanup transactions
 		// Data-Maintenance SUT interface (provided by us)
 		CDMSUTtest	m_CDMSUT( &m_Conn );
-		CDM	m_CDM( &m_CDMSUT, &log, inputFiles, iConfiguredCustomerCount,
-				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades,
-				1 );
+		CDM	m_CDM( &m_CDMSUT, &log, *dfm, iConfiguredCustomerCount,
+				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades, 1);
 
 		CDateTime	StartTime, EndTime, TxnTime;	// to time the transaction
-		StartTime.SetToCurrent();
+		StartTime.Set();
 
 		//  Parse Txn type
 		switch ( TxnType ) 
@@ -559,7 +558,7 @@ int main(int argc, char* argv[])
 		}
 
 		// record txn end time
-		EndTime.SetToCurrent();
+		EndTime.Set();
 
 		// calculate txn response time
 		TxnTime.Set(0);	// clear time

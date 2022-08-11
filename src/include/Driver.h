@@ -3,6 +3,7 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006-2010 Rilson Nascimento
+ *               2022      Mark Wong
  *
  * This class represents the workload driver
  * 03 August 2006
@@ -13,7 +14,6 @@
 
 #include "EGenLogFormatterTab.h"
 #include "EGenLogger.h"
-#include "InputFlatFilesStructure.h"
 #include "DMSUT.h"
 #include "locking.h"
 
@@ -24,7 +24,7 @@ class CDriver
 private:
 	CLogFormatTab m_fmt;
 	CEGenLogger *m_pLog;
-	CInputFiles m_InputFiles;
+	const DataFileManager *dfm;
 	PDriverCETxnSettings m_pDriverCETxnSettings;
 	CMutex m_LogLock;
 	ofstream m_fLog; // error log file
