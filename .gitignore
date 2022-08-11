@@ -17,5 +17,11 @@ cmake_install.cmake
 CMakeFiles/
 builds/
 
+egen/
+
+# quilt
+.pc/
+*~
+
 # PostgreSQL
 storedproc/pgsql/c/*.sql
