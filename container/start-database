@@ -2,10 +2,14 @@
 
 # Start the DBT-5 PostgreSQL database.
 
-which docker > /dev/null 2>&1
+ENGINE="podman"
+which podman > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "docker not in path"
-	exit 1
+	which $ENGINE > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "podman nor docker in path"
+		exit 1
+	fi
 fi
 
 SCALE=500
@@ -19,21 +23,27 @@ if [ $# -ge 2 ]; then
 	DBMS=$2
 fi
 
-DOCKERDIR=`dirname $0`
-DOCKER_TAG="dbt5-database-${DBMS}-${SCALE}s"
-DOCKER_NAME="dbt5-database-${DBMS}-${SCALE}s-0"
+CONTAINERDIR=$(dirname $0)
+CONTAINER_TAG="dbt5-database-${DBMS}-${SCALE}s"
+CONTAINER_NAME="dbt5-database-${DBMS}-${SCALE}s-0"
 
-# Use the return code from `docker inspect` to determine if the docker image
+# Use the return code from `$ENGINE inspect` to determine if the container image
 # needs to be created.
-docker inspect $DOCKER_TAG > /dev/null
+$ENGINE inspect $CONTAINER_TAG > /dev/null
 if [ $? -ne 0 ]; then
-	${DOCKERDIR}/build-database $SCALE $DBMS || exit 1
+	${CONTAINERDIR}/build-database $SCALE $DBMS || exit 1
+fi
+
+if [ "$ENGINE" = "podman" ]; then
+	PODMANARGS="--network=podman"
 fi
 
 if [ "x$DBMS" = "xpgsql" ]; then
 	PGDATA="/opt/pgdata"
-	docker run -d --rm -u postgres:postgres --name $DOCKER_NAME -p 5432:5432 \
-			$DOCKER_TAG postgres -D $PGDATA \
+	$ENGINE run \
+			$PODMANARGS \
+			-d --rm -u postgres:postgres --name $CONTAINER_NAME \
+			-p 5432:5432 $CONTAINER_TAG postgres -D $PGDATA \
 			-c client_encoding='SQL_ASCII' \
 			-c listen_addresses='*' \
 			-c unix_socket_directories='/tmp'
@@ -51,9 +61,9 @@ fi
 
 which jq > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	IPADDRESS=`docker inspect $DOCKER_NAME | jq -r '.[0].NetworkSettings.IPAddress'`
+	IPADDRESS=$($ENGINE inspect $CONTAINER_NAME | jq -r '.[0].NetworkSettings.IPAddress')
 	echo "IP Address: $IPADDRESS"
-	echo "${DOCKERDIR}/start-client $IPADDRESS $DBMS"
+	echo "${CONTAINERDIR}/start-client $IPADDRESS $DBMS"
 	if [ "x$DBMS" = "xpgsql" ]; then
 		echo "psql -h $IPADDRESS dbt5 postgres"
 	fi

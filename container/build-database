@@ -1,12 +1,17 @@
 #!/bin/sh
 
-# Build a Docker image with the DBT-5 database created.
+# Build a container image with the DBT-5 database created.
 
-which docker > /dev/null 2>&1
+ENGINE="podman"
+which podman > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "docker not in path"
-	exit 1
+	which $ENGINE > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "podman nor docker in path"
+		exit 1
+	fi
 fi
+
 
 SCALE=500
 DBMS="pgsql"
@@ -34,20 +39,25 @@ echo "Using PostgreSQL Major Version $PGVERSION"
 
 TOPDIR=`dirname $0`
 
-# Use the return code from `docker inspect` to determine if the docker image
-# needs to be created.
-docker inspect dbt5-base > /dev/null
+# Use the return code from `$ENGINE inspect` to determine if the container
+# image needs to be created.
+$ENGINE inspect dbt5-base > /dev/null
 if [ $? -ne 0 ]; then
 	${TOPDIR}/prepare-image || exit 1
 fi
 
+if [ "$ENGINE" = "podman" ]; then
+	PODMANARGS="--isolation=chroot"
+fi
+
 TOPDIR="${TOPDIR}/.."
-docker build -t dbt5-database-${DBMS}-${SCALE}s \
+$ENGINE build -t dbt5-database-${DBMS}-${SCALE}s \
+		$PODMANARGS \
 		--build-arg PGVERSION=$PGVERSION \
 		--build-arg DBMS=$DBMS \
 		--build-arg SCALE=$SCALE \
 		--shm-size=256m \
-		-f Dockerfile.database $TOPDIR
+		-f Containerfile.database $TOPDIR
 if [ $? -ne 0 ]; then
 	echo "usage: $0 [SCALE [DBMS [DBMSVER]]]"
 	echo

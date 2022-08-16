@@ -1,0 +1,26 @@
+#!/bin/sh
+
+ENGINE="podman"
+which podman > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	which $ENGINE > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "podman nor docker in path"
+		exit 1
+	fi
+fi
+
+if [ $# -ge 1 ]; then
+	DBADDR=$1
+fi
+
+CONTAINER_NAME="dbt5-driver-0"
+
+if [ "$ENGINE" = "podman" ]; then
+	export DBUS_SESSION_BUS_ADDRESS=""
+fi
+
+$ENGINE exec -u postgres:postgres -it \
+		$PODMANARGS \
+		$CONTAINER_NAME \
+		BrokerageHouseMain -h $DBADDR -d dbt5 -o /tmp

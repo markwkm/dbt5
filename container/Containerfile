@@ -1,0 +1,17 @@
+FROM rockylinux/rockylinux:8
+
+USER root
+RUN dnf -y update
+RUN dnf -y install bison \
+                   cmake \
+                   flex \
+                   gcc-c++ \
+                   glibc-devel \
+                   glibc-langpack-en \
+                   libev-devel \
+                   make \
+                   openssl-devel \
+                   patch \
+                   readline-devel \
+                   redhat-rpm-config \
+                   tar

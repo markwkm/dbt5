@@ -1,14 +1,18 @@
 #!/bin/sh
 
-# Build a Docker image with the DBT-5 Brokerage House.
-
-which docker > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-	echo "docker not in path"
-	exit 1
-fi
+# Build a Container image with the DBT-5 Brokerage House.
 
 PGVERSION=14.2
+
+ENGINE="podman"
+which podman > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	which $ENGINE > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "podman nor docker in path"
+		exit 1
+	fi
+fi
 
 if [ $# -ge 1 ]; then
 	PGVERSION=$1
@@ -24,17 +28,22 @@ echo "Using PostgreSQL Major Version $PGVERSION"
 
 TOPDIR=`dirname $0`
 
-# Use the return code from `docker inspect` to determine if the docker image
+# Use the return code from `$ENGINE inspect` to determine if the $ENGINE image
 # needs to be created.
-docker inspect dbt5-base > /dev/null
+$ENGINE inspect dbt5-base > /dev/null
 if [ $? -ne 0 ]; then
 	${TOPDIR}/prepare-image || exit 1
 fi
 
+if [ "$ENGINE" = "podman" ]; then
+	PODMANARGS="--isolation=chroot"
+fi
+
 TOPDIR="${TOPDIR}/.."
-docker build -t dbt5-driver \
+$ENGINE build -t dbt5-driver \
+		$PODMANARGS \
 		--build-arg PGVERSION=$PGVERSION \
-		-f Dockerfile.common $TOPDIR
+		-f Containerfile.common $TOPDIR
 if [ $? -ne 0 ]; then
 	echo "usage: $0 [DBMSVER]"
 	echo

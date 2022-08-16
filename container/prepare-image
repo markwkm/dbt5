@@ -1,13 +1,17 @@
 #!/bin/sh
 
-# Prepare a Docker image for building and running each component.
+# Prepare a Container image for building and running each component.
 
 PGVERSION=14.2
 
-which docker > /dev/null 2>&1
+ENGINE="podman"
+which podman > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "docker not in path"
-	exit 1
+	which docker > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "podman nor docker in path"
+		exit 1
+	fi
 fi
 
 if [ $# -ne 1 ]; then
@@ -25,5 +29,12 @@ fi
 
 echo "Using PostgreSQL Version $PGVERSION"
 
-DOCKER_DIR=`dirname $0`
-docker build --build-arg PGVERSION=$PGVERSION -t dbt5-base $DOCKER_DIR
+if [ "$ENGINE" = "podman" ]; then
+	PODMANARGS="--isolation=chroot"
+fi
+
+CONTAINER_DIR=`dirname $0`
+$ENGINE build \
+		$PODMANARGS \
+		-t dbt5-base \
+		$CONTAINER_DIR

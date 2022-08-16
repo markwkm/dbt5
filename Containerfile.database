@@ -7,9 +7,14 @@ RUN curl -OL https://ftp.postgresql.org/pub/source/v${PGVERSION}/postgresql-${PG
 RUN tar -C /usr/local/src -xvf postgresql-${PGVERSION}.tar.gz
 WORKDIR /usr/local/src/postgresql-${PGVERSION}
 RUN ./configure --prefix /usr
-RUN make install
+RUN make -j$(nproc) install
 
 COPY . /usr/local/src/dbt5
+
+# Build TPC-E tools.
+ARG EGENDIR="/usr/local/src/dbt5/egen"
+WORKDIR ${EGENDIR}/prj
+RUN make -f Makefile.pgsql
 
 # Install DBT-5 for PostgreSQL.
 ARG PKG_CONFIG_PATH="/usr/lib/pkgconfig"
@@ -17,10 +22,9 @@ WORKDIR /usr/local/src/dbt5
 RUN make -f Makefile.cmake release
 RUN (cd builds/release && make install)
 
-# Build TPC-E tools.
-ARG EGENDIR="/usr/local/src/dbt5/egen"
-WORKDIR ${EGENDIR}/prj
-RUN make -f Makefile.pgsql
+RUN groupadd postgres
+RUN useradd -g postgres postgres
+RUN chown -R postgres:postgres ${EGENDIR}
 
 ARG DBMS=pgsql
 ENV PATH="/usr/pgsql-${PGVERSION}/bin:$PATH"
@@ -29,11 +33,7 @@ ENV PATH="/usr/pgsql-${PGVERSION}/bin:$PATH"
 WORKDIR /usr/local/src/dbt5/storedproc/pgsql/c
 RUN if [ "x${DBMS}" = "xpgsql" ]; then make USE_PGXS=1 install; fi
 
-RUN groupadd postgres
-RUN useradd -g postgres postgres
-
 RUN chmod 777 /opt
-RUN chown -R postgres:postgres ${EGENDIR}
 
 USER postgres
 
@@ -43,8 +43,7 @@ ARG PGHOST="/tmp"
 ARG SCALE=500
 WORKDIR /tmp
 RUN  if [ "x${DBMS}" = "xpgsql" ]; then \
-             dbt5-pgsql-build-db -c 5000 -t 5000 -s $SCALE -w 300 -- \
-                     -p "-c unix_socket_directories='/tmp'" && \
+             dbt5-pgsql-build-db -c 5000 -t 5000 -s $SCALE -w 300 -- && \
                      dbt5-pgsql-stop-db; \
      fi
 RUN  if [ "x${DBMS}" = "xpgsql" ]; then \
