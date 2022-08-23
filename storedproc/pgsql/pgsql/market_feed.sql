@@ -3,35 +3,24 @@
  * the file LICENSE, included in this package, for details.
  *
  * Copyright (C) 2006 Rilson Nascimento
+ *               2022 Mark Wong
  *
- * Market Feed transaction
- * ------------------------
- * The Market-Feed transaction receives the latest prices for securities
- * that come in on the market feed ticker.
- *
- * Based on TPC-E Standard Specification Draft Revision 0.32.2e Clause 3.3.9.
+ * Based on TPC-E Standard Specification Revision 1.14.0.
  */
 
-/*
- * Frame 1
- * responsible to find the symbol and to modify the row in the LAST_TRADE table
- * for that symbol with the new price, to add the quantity traded to the daily
- * volume, and to modify the last trade date
- */
-
+-- Clause 3.3.3.3
 CREATE OR REPLACE FUNCTION MarketFeedFrame1 (
-						IN MaxSize		smallint,
-						IN price_quote		numeric(8,2)[],
+    IN price_quote S_PRICE_T[],
 						IN status_submitted	char(4),
 						IN symbol		char(15)[],
-						IN trade_qty		integer[],
+    IN trade_qty S_QTY_T,
 						IN type_limit_buy	char(3),
 						IN type_limit_sell	char(3),
-						IN type_stop_loss	char(3)) RETURNS SETOF record AS $$
+    IN type_stop_loss CHAR(3)
+  , OUT num_updated INTEGER
+  , OUT send_len INTEGER
+) RETURNS RECORD AS $$
 DECLARE
-	-- output parameters
-	TradeRequestBuffer	record;
-
 	-- variables
 	i			integer;
 	now_dts			timestamp;
@@ -40,6 +29,7 @@ DECLARE
 	price			numeric(8,2);
 	trade_type		char(3);
 	trade_quant		integer;
+    irow_count INTEGER;
 BEGIN
 	now_dts = now();
 
@@ -73,6 +63,9 @@ BEGIN
 			SET	T_DTS = now_dts,
 				T_ST_ID = status_submitted
 			WHERE	T_ID = trade_id;
+
+            GET DIAGNOSTICS irow_count = ROW_COUNT;
+            num_updated = num_updated + irow_count;
 		
 			DELETE	FROM TRADE_REQUEST
 			WHERE	TR_T_ID = trade_id;
@@ -80,16 +73,6 @@ BEGIN
 			INSERT INTO TRADE_HISTORY
 			VALUES (trade_id, now_dts, status_submitted);
 
-			FOR TradeRequestBuffer IN
-				SELECT	symbol[i],
-					trade_id,
-					price,
-					trade_quant,
-					trade_type
-			LOOP
-				RETURN NEXT TradeRequestBuffer;
-			END LOOP;
-		
 			FETCH	request_list
 			INTO	trade_id,
 				price,
