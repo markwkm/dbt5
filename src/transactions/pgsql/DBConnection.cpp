@@ -69,22 +69,47 @@ void inline TokenizeSmart(const string& str, vector<string>& tokens)
 		if (str[lastPos] == '"') {
 			pos = str.find_first_of("\"", lastPos + 1);
 			if (pos == string::npos) {
-				pos = str.find_first_of("}", lastPos);
-				end = true;
+				cerr << "Error finding closing double quotes after position "
+						<< lastPos << ": " << str << endl;
+				exit(1);
 			}
 			tokens.push_back(str.substr(lastPos + 1, pos - lastPos - 1));
 			lastPos = pos + 2;
-		} else if (str[lastPos] == '\0') {
-			return;
 		} else {
-			pos = str.find_first_of(",", lastPos);
+			pos = str.find_first_of(",)}", lastPos);
 			if (pos == string::npos) {
-				pos = str.find_first_of("}", lastPos);
-				end = true;
+				cerr << "Error finding next comma after position " << lastPos
+						<< ": " << str << endl;
+				exit(1);
 			}
 			tokens.push_back(str.substr(lastPos, pos - lastPos));
 			lastPos = pos + 1;
 		}
+
+		if (str[pos + 1] == '}' || str[pos + 1] == '\0')
+			return;
+	}
+}
+
+// SQL Array Tokenizer
+void inline TokenizeSQLArray(const string& str, vector<string>& tokens)
+{
+	// This is essentially an empty array. i.e. '{}'
+	if (str.size() < 3)
+		return;
+
+	string::size_type lastPos = 0;
+	string::size_type pos = 0;
+	bool end = false;
+	while (end == false)
+	{
+		lastPos = str.find_first_of("(", lastPos + 1);
+		if (lastPos == string::npos) {
+			return;
+		}
+		pos = str.find_first_of(")", lastPos);
+		tokens.push_back(str.substr(lastPos + 1, pos - lastPos));
+		lastPos = pos;
 	}
 }
 
@@ -232,7 +257,7 @@ void CDBConnection::execute(const TBrokerVolumeFrame1Input *pIn,
 	check_count(pOut->list_len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_volume), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_volume), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->volume[i] = atof((*p).c_str());
@@ -314,7 +339,7 @@ void CDBConnection::execute(const TCustomerPositionFrame1Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_acct_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_acct_id), vAux);
 	int i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->acct_id[i] = atol( (*p).c_str() );
@@ -323,7 +348,7 @@ void CDBConnection::execute(const TCustomerPositionFrame1Input *pIn,
 	check_count(pOut->acct_len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_asset_total), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_asset_total), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 			pOut->asset_total[i] = atof( (*p).c_str() );
@@ -384,7 +409,7 @@ void CDBConnection::execute(const TCustomerPositionFrame1Input *pIn,
 	pOut->c_st_id[cST_ID_len] = '\0';
 	strncpy(&pOut->c_tier, PQgetvalue(res, 0, i_c_tier), 1);
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_bal), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_bal), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->cash_bal[i] = atof( (*p).c_str() );
@@ -437,7 +462,7 @@ void CDBConnection::execute(const TCustomerPositionFrame2Input *pIn,
 	check_count(pOut->hist_len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_qty), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_qty), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->qty[i] = atoi((*p).c_str());
@@ -456,7 +481,7 @@ void CDBConnection::execute(const TCustomerPositionFrame2Input *pIn,
 	check_count(pOut->hist_len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_id), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_id[i] = atol((*p).c_str());
@@ -555,9 +580,9 @@ void CDBConnection::execute(const TMarketFeedFrame1Input *pIn,
 	vector<string>::iterator p5;
 
 	TokenizeSmart(PQgetvalue(res, 0, i_symbol), v1);
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_id), v2);
-	TokenizeSmart(PQgetvalue(res, 0, i_price_quote), v3);
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_qty), v4);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_id), v2);
+	TokenizeArray(PQgetvalue(res, 0, i_price_quote), v3);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_qty), v4);
 	TokenizeSmart(PQgetvalue(res, 0, i_trade_type), v5);
 
 	// FIXME: Consider altering to match spec.  Since PostgreSQL cannot
@@ -622,7 +647,6 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	int i_co_ad_town;
 	int i_co_ad_zip;
 	int i_co_desc;
-	int i_co_name;
 	int i_co_st_id;
 	int i_cp_co_name;
 	int i_cp_in_name;
@@ -653,12 +677,11 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	int i_pe_ratio;
 	int i_s_name;
 	int i_sp_rate;
-	int i_start_date;
 	int i_yield;
 
 	ostringstream osSQL;
 	osSQL << "SELECT * FROM SecurityDetailFrame1(" <<
-			(pIn->access_lob_flag == 0 ? "false" : "true") << "," <<
+			pIn->access_lob_flag << "::SMALLINT," <<
 			pIn->max_rows_to_return << ",'" <<
 			pIn->start_day.year << "-" <<
 			pIn->start_day.month << "-" <<
@@ -678,7 +701,6 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	i_co_ad_town = PQfnumber(res, "co_ad_town");
 	i_co_ad_zip = PQfnumber(res, "co_ad_zip");
 	i_co_desc = PQfnumber(res, "co_desc");
-	i_co_name = PQfnumber(res, "co_name");
 	i_co_st_id = PQfnumber(res, "co_st_id");
 	i_cp_co_name = PQfnumber(res, "cp_co_name");
 	i_cp_in_name = PQfnumber(res, "cp_in_name");
@@ -709,7 +731,6 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	i_pe_ratio = PQfnumber(res, "pe_ratio");
 	i_s_name = PQfnumber(res, "s_name");
 	i_sp_rate = PQfnumber(res, "sp_rate");
-	i_start_date = PQfnumber(res, "start_date");
 	i_yield = PQfnumber(res, "yield");
 
 	pOut->fin_len = atoi(PQgetvalue(res, 0, i_fin_len));
@@ -743,8 +764,6 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	pOut->co_ad_zip[cAD_ZIP_len] = '\0';
 	strncpy(pOut->co_desc, PQgetvalue(res, 0, i_co_desc), cCO_DESC_len);
 	pOut->co_desc[cCO_DESC_len] = '\0';
-	strncpy(pOut->co_name, PQgetvalue(res, 0, i_co_name), cCO_NAME_len);
-	pOut->co_name[cCO_NAME_len] = '\0';
 	strncpy(pOut->co_st_id, PQgetvalue(res, 0, i_co_st_id), cST_ID_len);
 	pOut->co_st_id[cST_ID_len] = '\0';
 
@@ -775,7 +794,7 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	check_count(3, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_day), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_day), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		vector<string> v2;
@@ -824,7 +843,7 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	pOut->ex_num_symb = atoi(PQgetvalue(res, 0, i_ex_num_symb));
 	pOut->ex_open = atoi(PQgetvalue(res, 0, i_ex_open));
 
-	TokenizeArray(PQgetvalue(res, 0, i_fin), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_fin), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		vector<string> v2;
@@ -859,18 +878,21 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	pOut->last_price = atof(PQgetvalue(res, 0, i_last_price));
 	pOut->last_vol = atoi(PQgetvalue(res, 0, i_last_vol));
 
-	TokenizeArray(PQgetvalue(res, 0, i_news), vAux);
 	i = 0;
-	for  (p = vAux.begin(); p != vAux.end(); ++p) {
+	TokenizeSQLArray(PQgetvalue(res, 0, i_news), vAux);
+	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		vector<string> v2;
 		vector<string>::iterator p2;
+		size_t l1;
+		unsigned char *s1 = PQunescapeBytea((const unsigned char *) ((*p).c_str()), &l1);
+		s1[l1 - 1] = '\0';
 
-		TokenizeSmart((*p).c_str(), v2);
+		std::string s2 = "{";
+		s2 += std::string((const char *) s1);
+		s2 += '}';
 
+		TokenizeSmart(s2, v2);
 		p2 = v2.begin();
-		// FIXME: Postgresql can actually return 5 times the amount of data due
-		// to escaped characters.  Cap the data at the length that EGen defines
-		// it and hope it isn't a problem for continuing the test correctly.
 		strncpy(pOut->news[i].item, (*p2++).c_str(), cNI_ITEM_len);
 		pOut->news[i].item[cNI_ITEM_len] = '\0';
 		sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
@@ -886,12 +908,13 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 		pOut->news[i].auth[cNI_AUTHOR_len] = '\0';
 		strncpy(pOut->news[i].headline, (*p2++).c_str(), cNI_HEADLINE_len);
 		pOut->news[i].headline[cNI_HEADLINE_len] = '\0';
-		strncpy(pOut->news[i].summary, (*p2++).c_str(), cNI_SUMMARY_len);
+		strncpy(pOut->news[i].summary, (*p2).c_str(), cNI_SUMMARY_len);
 		pOut->news[i].summary[cNI_SUMMARY_len] = '\0';
-		++i;
+
+		PQfreemem(s1);
 		v2.clear();
+		++i;
 	}
-	check_count(pOut->news_len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
 	sscanf(PQgetvalue(res, 0, i_open_date), "%hd-%hd-%hd",
@@ -904,10 +927,6 @@ void CDBConnection::execute(const TSecurityDetailFrame1Input *pIn,
 	pOut->num_out = atol(PQgetvalue(res, 0, i_num_out));
 	strncpy(pOut->sp_rate, PQgetvalue(res, 0, i_sp_rate), cSP_RATE_len);
 	pOut->sp_rate[cSP_RATE_len] = '\0';
-	sscanf(PQgetvalue(res, 0, i_start_date), "%hd-%hd-%hd",
-			&pOut->start_date.year,
-			&pOut->start_date.month,
-			&pOut->start_date.day);
 	pOut->yield = atof(PQgetvalue(res, 0, i_yield));
 	PQclear(res);
 }
@@ -976,7 +995,7 @@ void CDBConnection::execute(const TTradeLookupFrame1Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_bid_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_bid_price), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].bid_price = atof((*p).c_str());
@@ -985,7 +1004,7 @@ void CDBConnection::execute(const TTradeLookupFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -1027,7 +1046,7 @@ void CDBConnection::execute(const TTradeLookupFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atoi((*p).c_str());
@@ -1036,7 +1055,7 @@ void CDBConnection::execute(const TTradeLookupFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_market), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_market), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_market = atoi((*p).c_str());
@@ -1082,46 +1101,105 @@ void CDBConnection::execute(const TTradeLookupFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+						&pOut->trade_info[i].trade_history_dts[j].year,
+						&pOut->trade_info[i].trade_history_dts[j].month,
+						&pOut->trade_info[i].trade_history_dts[j].day,
+						&pOut->trade_info[i].trade_history_dts[j].hour,
+						&pOut->trade_info[i].trade_history_dts[j].minute,
+						&pOut->trade_info[i].trade_history_dts[j].second);
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
 			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-					&pOut->trade_info[i].trade_history_dts[j].year,
-					&pOut->trade_info[i].trade_history_dts[j].month,
-					&pOut->trade_info[i].trade_history_dts[j].day,
-					&pOut->trade_info[i].trade_history_dts[j].hour,
-					&pOut->trade_info[i].trade_history_dts[j].minute,
-					&pOut->trade_info[i].trade_history_dts[j].second);
-			++j;
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
 		}
-		++i;
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
-			strncpy(pOut->trade_info[i].trade_history_status_id[j],
-					(*p2).c_str(), cTH_ST_ID_len);
-			pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
-					'\0';
-			++j;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
 		}
-		++i;
+	} else {
+		for (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			int j = 0;
+			for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p2).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+				++j;
+			}
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_price), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_price = atof((*p).c_str());
@@ -1189,7 +1267,7 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_bid_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_bid_price), vAux);
 	int i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].bid_price = atof((*p).c_str());
@@ -1198,7 +1276,7 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -1243,7 +1321,7 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atoi((*p).c_str());
@@ -1252,7 +1330,7 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_settlement_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_settlement_amount), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].settlement_amount = atof((*p).c_str());
@@ -1287,46 +1365,105 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
-			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
 						&pOut->trade_info[i].trade_history_dts[j].year,
 						&pOut->trade_info[i].trade_history_dts[j].month,
 						&pOut->trade_info[i].trade_history_dts[j].day,
 						&pOut->trade_info[i].trade_history_dts[j].hour,
 						&pOut->trade_info[i].trade_history_dts[j].minute,
 						&pOut->trade_info[i].trade_history_dts[j].second);
-			++j;
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
 		}
-		++i;
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
+			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
-			strncpy(pOut->trade_info[i].trade_history_status_id[j],
-						(*p2).c_str(), cTH_ST_ID_len);
-			pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
-					'\0';
-			++j;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
 		}
-		++i;
+	} else {
+		for (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			int j = 0;
+			for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p2).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+				++j;
+			}
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_list), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_list), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_id = atol((*p).c_str());
@@ -1335,7 +1472,7 @@ void CDBConnection::execute(const TTradeLookupFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_price), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_price = atof((*p).c_str());
@@ -1409,7 +1546,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_acct_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_acct_id), vAux);
 	int i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].acct_id = atol((*p).c_str());
@@ -1418,7 +1555,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -1464,7 +1601,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atoi((*p).c_str());
@@ -1473,7 +1610,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_price), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].price = atof((*p).c_str());
@@ -1482,7 +1619,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_quantity), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_quantity), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].quantity = atoi((*p).c_str());
@@ -1491,7 +1628,7 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_settlement_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_settlement_amount), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].settlement_amount = atof((*p).c_str());
@@ -1538,49 +1675,108 @@ void CDBConnection::execute(const TTradeLookupFrame3Input *pIn,
 				&pOut->trade_info[i].trade_dts.second);
 		++i;
 	}
-	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
+	// FIXME: According to spec, this may not match the returned number found?
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+						&pOut->trade_info[i].trade_history_dts[j].year,
+						&pOut->trade_info[i].trade_history_dts[j].month,
+						&pOut->trade_info[i].trade_history_dts[j].day,
+						&pOut->trade_info[i].trade_history_dts[j].hour,
+						&pOut->trade_info[i].trade_history_dts[j].minute,
+						&pOut->trade_info[i].trade_history_dts[j].second);
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
 			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-					&pOut->trade_info[i].trade_history_dts[j].year,
-					&pOut->trade_info[i].trade_history_dts[j].month,
-					&pOut->trade_info[i].trade_history_dts[j].day,
-					&pOut->trade_info[i].trade_history_dts[j].hour,
-					&pOut->trade_info[i].trade_history_dts[j].minute,
-					&pOut->trade_info[i].trade_history_dts[j].second);
-			++j;
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
 		}
-		++i;
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
-			strncpy(pOut->trade_info[i].trade_history_status_id[j],
-					(*p2).c_str(), cTH_ST_ID_len);
-			pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
-					'\0';
-			++j;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
 		}
-		++i;
+	} else {
+		for (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			int j = 0;
+			for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p2).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+				++j;
+			}
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_list), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_list), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_id = atol((*p).c_str());
@@ -1646,7 +1842,7 @@ void CDBConnection::execute(const TTradeLookupFrame4Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_holding_history_trade_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_holding_history_trade_id), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].holding_history_trade_id = atol((*p).c_str());
@@ -1655,7 +1851,7 @@ void CDBConnection::execute(const TTradeLookupFrame4Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_quantity_after), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_quantity_after), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].quantity_after = atol((*p).c_str());
@@ -1664,7 +1860,7 @@ void CDBConnection::execute(const TTradeLookupFrame4Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_quantity_before), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_quantity_before), vAux);
 	i = 0;
 	for (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].quantity_before = atol((*p).c_str());
@@ -1687,19 +1883,18 @@ void CDBConnection::execute(const TTradeOrderFrame1Input *pIn,
 
 	strncpy(pOut->acct_name, PQgetvalue(res, 0, 0), cCA_NAME_len);
 	pOut->acct_name[cCA_NAME_len] ='\0';
-	pOut->broker_id = atol(PQgetvalue(res, 0, 1));
-	strncpy(pOut->broker_name, PQgetvalue(res, 0, 2), cB_NAME_len);
+	strncpy(pOut->broker_name, PQgetvalue(res, 0, 1), cB_NAME_len);
 	pOut->broker_name[cB_NAME_len]  ='\0';
-	strncpy(pOut->cust_f_name, PQgetvalue(res, 0, 3), cF_NAME_len);
+	strncpy(pOut->cust_f_name, PQgetvalue(res, 0, 2), cF_NAME_len);
 	pOut->cust_f_name[cF_NAME_len] = '\0';
-	pOut->cust_id = atol(PQgetvalue(res, 0, 4));
-	strncpy(pOut->cust_l_name, PQgetvalue(res, 0, 5), cL_NAME_len);
+	pOut->cust_id = atol(PQgetvalue(res, 0, 3));
+	strncpy(pOut->cust_l_name, PQgetvalue(res, 0, 4), cL_NAME_len);
 	pOut->cust_l_name[cL_NAME_len] = '\0';
-	pOut->cust_tier = atoi(PQgetvalue(res, 0, 6));
-	pOut->num_found = atoi(PQgetvalue(res, 0, 7));
-	strncpy(pOut->tax_id, PQgetvalue(res, 0, 8), cTAX_ID_len);
+	pOut->cust_tier = atoi(PQgetvalue(res, 0, 5));
+	pOut->num_found = atoi(PQgetvalue(res, 0, 6));
+	strncpy(pOut->tax_id, PQgetvalue(res, 0, 7), cTAX_ID_len);
 	pOut->tax_id[cTAX_ID_len] = '\0';
-	pOut->tax_status = atoi(PQgetvalue(res, 0, 9));
+	pOut->tax_status = atoi(PQgetvalue(res, 0, 8));
 	PQclear(res);
 }
 
@@ -1985,7 +2180,7 @@ void CDBConnection::execute(const TTradeStatusFrame1Input *pIn,
 	i_exec_name = PQfnumber(res, "exec_name");
 	i_num_found = PQfnumber(res, "num_found");
 	i_s_name = PQfnumber(res, "s_name");
-	i_status_name = PQfnumber(res, "st_name");
+	i_status_name = PQfnumber(res, "status_name");
 	i_symbol = PQfnumber(res, "symbol");
 	i_trade_dts = PQfnumber(res, "trade_dts");
 	i_trade_id = PQfnumber(res, "trade_id");
@@ -2000,7 +2195,7 @@ void CDBConnection::execute(const TTradeStatusFrame1Input *pIn,
 	strncpy(pOut->broker_name, PQgetvalue(res, 0, i_broker_name), cB_NAME_len);
 	pOut->broker_name[cB_NAME_len] = '\0';
 
-	TokenizeSmart(PQgetvalue(res, 0, i_charge), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_charge), vAux);
 	int i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->charge[i] = atof((*p).c_str());
@@ -2079,7 +2274,7 @@ void CDBConnection::execute(const TTradeStatusFrame1Input *pIn,
 	check_count(len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_id), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_id[i] = atol((*p).c_str());
@@ -2088,7 +2283,7 @@ void CDBConnection::execute(const TTradeStatusFrame1Input *pIn,
 	check_count(len, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_qty), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_qty), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_qty[i] = atoi((*p).c_str());
@@ -2163,7 +2358,7 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_bid_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_bid_price), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].bid_price = atof((*p).c_str());
@@ -2172,7 +2367,7 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -2216,7 +2411,8 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 	}
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atof((*p).c_str());
@@ -2225,7 +2421,7 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_market), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_market), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_market = atof((*p).c_str());
@@ -2234,7 +2430,7 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_settlement_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_settlement_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].settlement_amount = atof((*p).c_str());
@@ -2271,61 +2467,105 @@ void CDBConnection::execute(const TTradeUpdateFrame1Input *pIn,
 
 	pOut->num_updated = atoi(PQgetvalue(res, 0, i_num_updated));
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for  (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
-		p2 = v2.begin();
-		sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[0].year,
-				&pOut->trade_info[i].trade_history_dts[0].month,
-				&pOut->trade_info[i].trade_history_dts[0].day,
-				&pOut->trade_info[i].trade_history_dts[0].hour,
-				&pOut->trade_info[i].trade_history_dts[0].minute,
-				&pOut->trade_info[i].trade_history_dts[0].second);
-		sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[1].year,
-				&pOut->trade_info[i].trade_history_dts[1].month,
-				&pOut->trade_info[i].trade_history_dts[1].day,
-				&pOut->trade_info[i].trade_history_dts[1].hour,
-				&pOut->trade_info[i].trade_history_dts[1].minute,
-				&pOut->trade_info[i].trade_history_dts[1].second);
-		sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[2].year,
-				&pOut->trade_info[i].trade_history_dts[2].month,
-				&pOut->trade_info[i].trade_history_dts[2].day,
-				&pOut->trade_info[i].trade_history_dts[2].hour,
-				&pOut->trade_info[i].trade_history_dts[2].minute,
-				&pOut->trade_info[i].trade_history_dts[2].second);
-		++i;
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
+		int j = 0;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+						&pOut->trade_info[i].trade_history_dts[j].year,
+						&pOut->trade_info[i].trade_history_dts[j].month,
+						&pOut->trade_info[i].trade_history_dts[j].day,
+						&pOut->trade_info[i].trade_history_dts[j].hour,
+						&pOut->trade_info[i].trade_history_dts[j].minute,
+						&pOut->trade_info[i].trade_history_dts[j].second);
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
+			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
-	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for  (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
-		p2 = v2.begin();
-		strncpy(pOut->trade_info[i].trade_history_status_id[0],
-				(*p2++).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[0][cTH_ST_ID_len] = '\0';
-		strncpy(pOut->trade_info[i].trade_history_status_id[1],
-				(*p2++).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[1][cTH_ST_ID_len] = '\0';
-		strncpy(pOut->trade_info[i].trade_history_status_id[2],
-				(*p2).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[2][cTH_ST_ID_len] = '\0';
-		++i;
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
+		int j = 0;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			int j = 0;
+			for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p2).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+				++j;
+			}
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
-	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_price), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_price = atof((*p).c_str());
@@ -2395,7 +2635,7 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_bid_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_bid_price), vAux);
 	int i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].bid_price = atof((*p).c_str());
@@ -2404,7 +2644,7 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -2449,7 +2689,7 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atof((*p).c_str());
@@ -2460,7 +2700,7 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 
 	pOut->num_updated = atoi(PQgetvalue(res, 0, i_num_updated));
 
-	TokenizeSmart(PQgetvalue(res, 0, i_settlement_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_settlement_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].settlement_amount = atof((*p).c_str());
@@ -2495,61 +2735,106 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for  (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
-		p2 = v2.begin();
-		sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[0].year,
-				&pOut->trade_info[i].trade_history_dts[0].month,
-				&pOut->trade_info[i].trade_history_dts[0].day,
-				&pOut->trade_info[i].trade_history_dts[0].hour,
-				&pOut->trade_info[i].trade_history_dts[0].minute,
-				&pOut->trade_info[i].trade_history_dts[0].second);
-		sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[1].year,
-				&pOut->trade_info[i].trade_history_dts[1].month,
-				&pOut->trade_info[i].trade_history_dts[1].day,
-				&pOut->trade_info[i].trade_history_dts[1].hour,
-				&pOut->trade_info[i].trade_history_dts[1].minute,
-				&pOut->trade_info[i].trade_history_dts[1].second);
-		sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-				&pOut->trade_info[i].trade_history_dts[2].year,
-				&pOut->trade_info[i].trade_history_dts[2].month,
-				&pOut->trade_info[i].trade_history_dts[2].day,
-				&pOut->trade_info[i].trade_history_dts[2].hour,
-				&pOut->trade_info[i].trade_history_dts[2].minute,
-				&pOut->trade_info[i].trade_history_dts[2].second);
-		++i;
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
+		int j = 0;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+						&pOut->trade_info[i].trade_history_dts[j].year,
+						&pOut->trade_info[i].trade_history_dts[j].month,
+						&pOut->trade_info[i].trade_history_dts[j].day,
+						&pOut->trade_info[i].trade_history_dts[j].hour,
+						&pOut->trade_info[i].trade_history_dts[j].minute,
+						&pOut->trade_info[i].trade_history_dts[j].second);
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
+			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
-	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for  (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
-		p2 = v2.begin();
-		strncpy(pOut->trade_info[i].trade_history_status_id[0],
-				(*p2++).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[0][cTH_ST_ID_len] = '\0';
-		strncpy(pOut->trade_info[i].trade_history_status_id[1],
-				(*p2++).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[1][cTH_ST_ID_len] = '\0';
-		strncpy(pOut->trade_info[i].trade_history_status_id[2],
-				(*p2).c_str(), cTH_ST_ID_len);
-		pOut->trade_info[i].trade_history_status_id[2][cTH_ST_ID_len] = '\0';
-		++i;
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
+		int j = 0;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] = '\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			strncpy(pOut->trade_info[i].trade_history_status_id[0],
+					(*p2++).c_str(), cTH_ST_ID_len);
+			pOut->trade_info[i].trade_history_status_id[0][cTH_ST_ID_len] = '\0';
+			strncpy(pOut->trade_info[i].trade_history_status_id[1],
+					(*p2++).c_str(), cTH_ST_ID_len);
+			pOut->trade_info[i].trade_history_status_id[1][cTH_ST_ID_len] = '\0';
+			strncpy(pOut->trade_info[i].trade_history_status_id[2],
+					(*p2).c_str(), cTH_ST_ID_len);
+			pOut->trade_info[i].trade_history_status_id[2][cTH_ST_ID_len] = '\0';
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
-	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_list), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_list), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_id = atol((*p).c_str());
@@ -2558,7 +2843,7 @@ void CDBConnection::execute(const TTradeUpdateFrame2Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_price), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_price = atof((*p).c_str());
@@ -2639,7 +2924,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	vector<string> vAux;
 	vector<string>::iterator p;
 
-	TokenizeSmart(PQgetvalue(res, 0, i_acct_id), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_acct_id), vAux);
 	int i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].acct_id = atol((*p).c_str());
@@ -2648,7 +2933,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_cash_transaction_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].cash_transaction_amount = atof((*p).c_str());
@@ -2692,7 +2977,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_is_cash), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_is_cash), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].is_cash = atof((*p).c_str());
@@ -2703,7 +2988,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 
 	pOut->num_updated = atoi(PQgetvalue(res, 0, i_num_updated));
 
-	TokenizeSmart(PQgetvalue(res, 0, i_price), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_price), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].price = atof((*p).c_str());
@@ -2712,7 +2997,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_quantity), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_quantity), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].quantity = atoi((*p).c_str());
@@ -2730,7 +3015,7 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	}
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_settlement_amount), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_settlement_amount), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].settlement_amount = atof((*p).c_str());
@@ -2780,46 +3065,105 @@ void CDBConnection::execute(const TTradeUpdateFrame3Input *pIn,
 	check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_dts), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_dts), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_dts[j].year = 0;
+				pOut->trade_info[i].trade_history_dts[j].month = 0;
+				pOut->trade_info[i].trade_history_dts[j].day = 0;
+				pOut->trade_info[i].trade_history_dts[j].hour = 0;
+				pOut->trade_info[i].trade_history_dts[j].minute = 0;
+				pOut->trade_info[i].trade_history_dts[j].second = 0;
+			} else {
+				sscanf((*p).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+						&pOut->trade_info[i].trade_history_dts[j].year,
+						&pOut->trade_info[i].trade_history_dts[j].month,
+						&pOut->trade_info[i].trade_history_dts[j].day,
+						&pOut->trade_info[i].trade_history_dts[j].hour,
+						&pOut->trade_info[i].trade_history_dts[j].minute,
+						&pOut->trade_info[i].trade_history_dts[j].second);
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
+		}
+	} else {
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			p2 = v2.begin();
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[0].year,
+					&pOut->trade_info[i].trade_history_dts[0].month,
+					&pOut->trade_info[i].trade_history_dts[0].day,
+					&pOut->trade_info[i].trade_history_dts[0].hour,
+					&pOut->trade_info[i].trade_history_dts[0].minute,
+					&pOut->trade_info[i].trade_history_dts[0].second);
+			sscanf((*p2++).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
+					&pOut->trade_info[i].trade_history_dts[1].year,
+					&pOut->trade_info[i].trade_history_dts[1].month,
+					&pOut->trade_info[i].trade_history_dts[1].day,
+					&pOut->trade_info[i].trade_history_dts[1].hour,
+					&pOut->trade_info[i].trade_history_dts[1].minute,
+					&pOut->trade_info[i].trade_history_dts[1].second);
 			sscanf((*p2).c_str(), "%hd-%hd-%hd %hd:%hd:%hd",
-					&pOut->trade_info[i].trade_history_dts[j].year,
-					&pOut->trade_info[i].trade_history_dts[j].month,
-					&pOut->trade_info[i].trade_history_dts[j].day,
-					&pOut->trade_info[i].trade_history_dts[j].hour,
-					&pOut->trade_info[i].trade_history_dts[j].minute,
-					&pOut->trade_info[i].trade_history_dts[j].second);
-			++j;
+					&pOut->trade_info[i].trade_history_dts[2].year,
+					&pOut->trade_info[i].trade_history_dts[2].month,
+					&pOut->trade_info[i].trade_history_dts[2].day,
+					&pOut->trade_info[i].trade_history_dts[2].hour,
+					&pOut->trade_info[i].trade_history_dts[2].minute,
+					&pOut->trade_info[i].trade_history_dts[2].second);
+			++i;
 		}
-		++i;
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeArray(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
+	TokenizeSmart(PQgetvalue(res, 0, i_trade_history_status_id), vAux);
 	i = 0;
-	for (p = vAux.begin(); p != vAux.end(); ++p) {
-		vector<string> v2;
-		vector<string>::iterator p2;
-		TokenizeSmart((*p).c_str(), v2);
+	// Handle the case when the DBMS may return 2D arrays as 1D, which will be
+	// exactly 60 elements.
+	if (vAux.size() == 60) {
 		int j = 0;
-		for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
-			strncpy(pOut->trade_info[i].trade_history_status_id[j],
-					(*p2).c_str(), cTH_ST_ID_len);
-			pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
-					'\0';
-			++j;
+		for  (p = vAux.begin(); p != vAux.end(); ++p) {
+			if ((*p).c_str()[0] == 'N') {
+				pOut->trade_info[i].trade_history_status_id[j][0] = '\0';
+			} else {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+			}
+			if (j == 2)
+				++i;
+			j = (j + 1) % 3;
 		}
-		++i;
+	} else {
+		for (p = vAux.begin(); p != vAux.end(); ++p) {
+			vector<string> v2;
+			vector<string>::iterator p2;
+			TokenizeSmart((*p).c_str(), v2);
+			int j = 0;
+			for (p2 = v2.begin(); p2 != v2.end(); ++p2) {
+				strncpy(pOut->trade_info[i].trade_history_status_id[j],
+						(*p2).c_str(), cTH_ST_ID_len);
+				pOut->trade_info[i].trade_history_status_id[j][cTH_ST_ID_len] =
+						'\0';
+				++j;
+			}
+			++i;
+		}
+		check_count(pOut->num_found, vAux.size(), __FILE__, __LINE__);
 	}
 	vAux.clear();
 
-	TokenizeSmart(PQgetvalue(res, 0, i_trade_list), vAux);
+	TokenizeArray(PQgetvalue(res, 0, i_trade_list), vAux);
 	i = 0;
 	for  (p = vAux.begin(); p != vAux.end(); ++p) {
 		pOut->trade_info[i].trade_id = atol((*p).c_str());
