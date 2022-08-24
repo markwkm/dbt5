@@ -553,6 +553,7 @@ int main(int argc, char* argv[])
 		TxnTime.Add(0, (int)((EndTime - StartTime) * MsPerSecond));	// add ms
 
 		cout << "Txn Response Time = " << (TxnTime.MSec()/1000.0) << endl;
+		delete dfm;
 	} catch (CBaseErr *pErr) {
 		cout << "Error " << pErr->ErrorNum() << ": " << pErr->ErrorText();
 		if (pErr->ErrorLoc()) {
@@ -565,6 +566,8 @@ int main(int argc, char* argv[])
 		cerr << "### FUCK THERE HAS BEEN A PROBLEM" << endl;
 		return 3;
 	}
+
+	delete m_pCCESUT;
 
 	return 0;
 }
