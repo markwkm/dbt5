@@ -1,3 +1,5 @@
+vX.Y.Z (YYYY-MM-DD)
+
 v0.10.3 (2024-06-18)
 
 - pgsql pl/c fix byte ordering bug in trade result frame 6
