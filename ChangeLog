@@ -23,6 +23,8 @@ vX.Y.Z (YYYY-MM-DD)
   its start
 - AppImage: allow building of DBT Tools and Touchstone Tools from custom git
   repository and git reference
+- AppImage: fix the image carrying the license directories of every
+  earlier build made in the same tree
 
 v0.10.14 (2026-08-11)
 

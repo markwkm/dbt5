@@ -36,6 +36,10 @@ find_first()
 	find /usr -not -path '*/AppDir/*' -type f -name "${1}" | head -n 1
 }
 
+# The AppDir persists between builds and cp merges into it, so without
+# this every license directory from every earlier build would ship in
+# the AppImage alongside the current ones.
+rm -rf "${APPDIR}/usr/share/licenses"
 if [ -d "/usr/local/share/licenses" ]; then
 	mkdir -p "${APPDIR}/usr/share"
 	cp -pr /usr/local/share/licenses "${APPDIR}/usr/share"
