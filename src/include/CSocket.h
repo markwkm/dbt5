@@ -49,6 +49,12 @@ public:
 		return m_sockfd;
 	}
 
+	int
+	getListenFd()
+	{
+		return m_listenfd;
+	}
+
 	void
 	closeListenerSocket()
 	{

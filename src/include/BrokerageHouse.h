@@ -35,7 +35,7 @@ using namespace TPCE;
 
 class CBrokerageHouse
 {
-private:
+protected:
 	int m_iListenPort;
 	CSocket m_Socket;
 	CMutex m_LogLock;
@@ -54,6 +54,7 @@ private:
 
 	bool m_Verbose;
 
+private:
 	friend void entryWorkerThread(void *); // entry point for worker thread
 	friend class CBrokerageHouseWorker;
 

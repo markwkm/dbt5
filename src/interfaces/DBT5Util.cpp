@@ -10,6 +10,7 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -91,6 +92,14 @@ forkOnProcessor(int cpu)
 	}
 
 	return 0;
+}
+
+bool
+setNonBlocking(int fd)
+{
+	int flags = fcntl(fd, F_GETFL);
+
+	return flags != -1 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
 string

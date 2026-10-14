@@ -23,6 +23,9 @@ vector<int> availableProcessors();
 // the parent exits.  Returns what fork() returns.
 pid_t forkOnProcessor(int cpu);
 
+// Make a file descriptor non-blocking.  Returns whether it succeeded.
+bool setNonBlocking(int fd);
+
 // Describe the exception that the caller is handling, and delete it if it is
 // an error thrown by pointer.  Call only from a catch handler.  The callbacks
 // of the event loop, which is C, must catch every exception, and use this to

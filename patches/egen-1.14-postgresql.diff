@@ -2,7 +2,7 @@ Index: dbt5/egen/prj/Makefile
 ===================================================================
 --- dbt5.orig/egen/prj/Makefile
 +++ dbt5/egen/prj/Makefile
-@@ -210,10 +210,70 @@ EGenValidate_src =		EGenValidate.cpp str
+@@ -210,10 +210,75 @@ EGenValidate_src =		EGenValidate.cpp str
  EGenValidate_obj =		$(EGenValidate_src:.cpp=.o)
  
  
@@ -66,15 +66,20 @@ Index: dbt5/egen/prj/Makefile
 +
 +DriverMain2_obj =		$(DriverMain2_src:.cpp=.o) Driver/DriverMain2.o
 +
++
++BrokerageHouseMain2_src =	BrokerageHouse/BrokerageHouse2.cpp
++
++BrokerageHouseMain2_obj =	$(BrokerageHouseMain2_src:.cpp=.o) BrokerageHouse/BrokerageHouseMain2.o
++
  # Using pattern rules that were defined earlier. 
  # All options are specified through the variables.
  
 -all:				EGenDriverLib EGenLoader EGenValidate
-+all:				EGenDriverLib EGenLoader EGenValidate MarketExchangeMain BrokerageHouseMain DriverMain TestTxn DriverMain2
++all:				EGenDriverLib EGenLoader EGenValidate MarketExchangeMain BrokerageHouseMain DriverMain TestTxn BrokerageHouseMain2 DriverMain2
  
  EGenLoader:			EGenUtilities \
  				EGenInputFiles \
-@@ -249,6 +309,112 @@ EGenValidate:			EGenDriverLib \
+@@ -249,6 +314,138 @@ EGenValidate:			EGenDriverLib \
  	cd $(PRJ); \
  	ls -al $(EXE)
  
@@ -160,6 +165,29 @@ Index: dbt5/egen/prj/Makefile
 +	cd $(PRJ); \
 +	ls -l $(EXE)
 +
++BrokerageHouseMain2:		EGenDriverLib \
++				EGenUtilities \
++				$(BrokerageHouseMain2_obj) \
++				$(DBT5Brokerage_obj) \
++				$(DBT5Util_obj) \
++				$(DBT5Postgres_obj) \
++				$(DBT5Socket_obj) \
++				$(DBT5Transaction_obj)
++	cd $(OBJ); \
++	$(CXX) 	$(LDFLAGS) \
++				$(BrokerageHouseMain2_obj) \
++				$(DBT5Brokerage_obj) \
++				$(DBT5Util_obj) \
++				$(DBT5Postgres_obj) \
++				$(DBT5Socket_obj) \
++				$(DBT5Transaction_obj) \
++				$(EGenUtilities_obj) \
++				$(LIB)/$(EGenDriverLib_lib) \
++				$(LIBS) -lev \
++				-o $(EXE)/$@; \
++	cd $(PRJ); \
++	ls -l $(EXE)
++
 +DriverMain2:			EGenDriverLib \
 +				EGenUtilities \
 +				$(DBT5Base_obj) \
@@ -184,10 +212,13 @@ Index: dbt5/egen/prj/Makefile
 +Driver/DriverMain2.o:		Driver/DriverMain.cpp
 +	$(CXX) $(CCFLAGS) $(APPDEFINES) -DLIBEV -c $< -o $(OBJ)/$@
 +
++BrokerageHouse/BrokerageHouseMain2.o:	BrokerageHouse/BrokerageHouseMain.cpp
++	$(CXX) $(CCFLAGS) $(APPDEFINES) -DLIBEV -c $< -o $(OBJ)/$@
++
  EGenDriverLib:			EGenDriverCELib \
  				EGenDriverDMLib \
  				EGenDriverMEELib \
-@@ -298,9 +464,21 @@ clean:
+@@ -298,9 +495,22 @@ clean:
  				$(FlatFileLoader_obj) \
  				$(EGenGenerateAndLoad_obj) \
  				$(EGenValidate_obj) \
@@ -204,10 +235,11 @@ Index: dbt5/egen/prj/Makefile
 +				$(MarketExchangeMain_obj) \
 +				$(TestTxn_obj) \
 +				$(DBT5Util_obj) \
-+				$(DriverMain2_obj); \
++				$(DriverMain2_obj) \
++				$(BrokerageHouseMain2_obj); \
  	cd $(LIB); \
  	rm -f			$(EGenDriverLib_lib); \
  	cd $(EXE); \
 -	rm -f			EGenLoader EGenValidate; \
-+	rm -f			EGenLoader EGenValidate MarketExchangeMain BrokerageHouseMain DriverMain TestTxn DriverMain2; \
++	rm -f			EGenLoader EGenValidate MarketExchangeMain BrokerageHouseMain DriverMain TestTxn BrokerageHouseMain2 DriverMain2; \
  	cd $(PRJ)

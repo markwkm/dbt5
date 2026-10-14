@@ -10,13 +10,20 @@
 
 #include <unistd.h>
 
+#ifdef LIBEV
+#include "BrokerageHouse2.h"
+#else
 #include "BrokerageHouse.h"
+#endif
 #include "DBT5Consts.h"
 
 // Establish defaults for command line option
 int iClientSide = 0;
 int iListenPort = iBrokerageHousePort;
 bool verbose = false;
+#ifdef LIBEV
+int iProcessesPerProcessor = 1;
+#endif
 
 char szHost[iMaxHostname + 1] = "";
 char szDBName[iMaxDBName + 1] = "";
@@ -29,11 +36,19 @@ char outputDirectory[iMaxPath + 1] = ".";
 void
 usage()
 {
+#ifdef LIBEV
+	cout << "Usage: BrokerageHouseMain2 [options]" << endl << endl;
+#else
 	cout << "Usage: BrokerageHouseMain [options]" << endl << endl;
+#endif
 	cout << "   Option      Default    Description" << endl;
 	cout << "   =========   =========  ===============" << endl;
 	cout << "   -1                     Use client-side app logic" << endl;
 	cout << "   -d string              Database name" << endl;
+#ifdef LIBEV
+	printf("   -F integer  %-9d  Processes per processor\n",
+			iProcessesPerProcessor);
+#endif
 	cout << "   -h string   localhost  Database server" << endl;
 	printf("   -l integer  %-9d  Socket listen port\n", iListenPort);
 	printf("   -m string   %9s  Market Exchange Emulator hostname\n",
@@ -53,7 +68,12 @@ parse_command_line(int argc, char *argv[])
 
 	// getopt reports missing option arguments and unknown options,
 	// unlike the old hand rolled parser, which silently accepted them.
-	while ((ch = getopt(argc, argv, "1d:h:l:m:M:o:p:v")) != -1) {
+#ifdef LIBEV
+	const char *optstring = "1d:F:h:l:m:M:o:p:v";
+#else
+	const char *optstring = "1d:h:l:m:M:o:p:v";
+#endif
+	while ((ch = getopt(argc, argv, optstring)) != -1) {
 		switch (ch) {
 		case '1':
 			iClientSide = 1;
@@ -62,6 +82,16 @@ parse_command_line(int argc, char *argv[])
 			strncpy(szDBName, optarg, iMaxDBName);
 			szDBName[iMaxDBName] = '\0';
 			break;
+#ifdef LIBEV
+		case 'F':
+			iProcessesPerProcessor = atoi(optarg);
+			if (iProcessesPerProcessor < 1) {
+				cerr << "Error: invalid number of processes for -F: " << optarg
+					 << endl;
+				exit(1);
+			}
+			break;
+#endif
 		case 'h': // Database host name.
 			strncpy(szHost, optarg, iMaxHostname);
 			szHost[iMaxHostname] = '\0';
@@ -139,8 +169,14 @@ main(int argc, char *argv[])
 		 << "  Hostname: " << szMEEHost << endl
 		 << "  Port: " << szMEEPort << endl;
 
+#ifdef LIBEV
+	CBrokerageHouse2 BrokerageHouse(szHost, szDBName, szDBPort, szMEEHost,
+			szMEEPort, iListenPort, outputDirectory, iClientSide, verbose,
+			iProcessesPerProcessor);
+#else
 	CBrokerageHouse BrokerageHouse(szHost, szDBName, szDBPort, szMEEHost,
 			szMEEPort, iListenPort, outputDirectory, iClientSide, verbose);
+#endif
 	cout << "Brokerage House opened for business, waiting for traders..."
 		 << endl;
 	try {
@@ -162,7 +198,9 @@ main(int argc, char *argv[])
 		return 3;
 	}
 
+#ifndef LIBEV
 	pthread_exit(NULL);
+#endif
 
 	cout << "Brokerage House closed for business" << endl;
 	return (0);

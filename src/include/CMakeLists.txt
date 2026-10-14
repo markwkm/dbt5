@@ -2,6 +2,7 @@ add_subdirectory (custom)
 
 install (FILES BaseInterface.h
                BrokerageHouse.h
+               BrokerageHouse2.h
                BrokerageHouseWorker.h
                BrokerVolumeDB.h
                CESUT.h

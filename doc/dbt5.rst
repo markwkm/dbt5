@@ -45,10 +45,10 @@ Driver
 Event Driven Programs
 =====================
 
-The driver is also built a second time to use libev event loops in place of
-threads.  The event driven driver accepts the same options as the threaded
-driver, plus the options that this section describes.  The workload runner,
-**dbt5 run**, starts the threaded driver.
+The driver and the Brokerage House are also built a second time to use libev
+event loops in place of threads.  The event driven programs accept the same
+options as the threaded programs, plus the options that this section describes.
+The workload runner, **dbt5 run**, starts the threaded programs.
 
 The event driven driver, **DriverMain2**, forks one process for each
 processor that it may run on, pins each process to its processor, and divides
@@ -59,10 +59,20 @@ ramp-up time does not change.  The parent process runs the Data-Maintenance
 transaction once per minute.  The ``-F`` option sets the number of processes
 per processor, 1 by default.
 
-Killing the parent process of the event driven driver kills its other
-processes too.  The kit stops a program by killing the process whose process
-identifier the program writes to a file, so it stops the event driven driver
-the same way that it stops the threaded driver.
+The event driven Brokerage House, **BrokerageHouseMain2**, forks worker
+processes the same way.  Each worker process opens one database connection,
+and executes the transactions requested on all of the driver connections
+that it serves, one transaction at a time.  The parent process accepts each
+driver connection and passes it to a worker process through a Unix domain
+socket.  The ``-F`` option sets the number of worker processes per processor,
+1 by default.  A request waits while its worker process executes a
+transaction for another connection, so when there are more connections than
+worker processes, more worker processes reduce response times.
+
+Killing the parent process of the event driven driver or Brokerage House
+kills its other processes too.  The kit stops a program by killing the process
+whose process identifier the program writes to a file, so it stops these
+programs the same way that it stops the threaded programs.
 
 ----------------
 Installing DBT-5
