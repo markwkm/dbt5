@@ -8,23 +8,181 @@
  */
 
 #include "BrokerageHouse.h"
+#include "BrokerageHouseWorker.h"
 #include "CommonStructs.h"
 #include "DBConnection.h"
 #include "DBConnectionClientSide.h"
 #include "DBConnectionServerSide.h"
 
-#include "BrokerVolumeDB.h"
-#include "CustomerPositionDB.h"
-#include "DataMaintenanceDB.h"
-#include "MarketFeedDB.h"
-#include "MarketWatchDB.h"
-#include "SecurityDetailDB.h"
-#include "TradeCleanupDB.h"
-#include "TradeLookupDB.h"
-#include "TradeOrderDB.h"
-#include "TradeResultDB.h"
-#include "TradeStatusDB.h"
-#include "TradeUpdateDB.h"
+CBrokerageHouseWorker::CBrokerageHouseWorker(
+		CBrokerageHouse *pBrokerageHouse, char *szMEEHost, char *szMEEPort)
+: m_pBrokerageHouse(pBrokerageHouse),
+  m_SendToMarket(&(pBrokerageHouse->m_fLog), szMEEHost, atoi(szMEEPort)),
+  m_pDBConnection(newDBConnection(pBrokerageHouse)),
+  m_MarketFeedDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_MarketFeed(&m_MarketFeedDB, &m_SendToMarket),
+  m_TradeOrderDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeOrder(&m_TradeOrderDB, &m_SendToMarket),
+  m_BrokerVolumeDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_BrokerVolume(&m_BrokerVolumeDB),
+  m_CustomerPositionDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_CustomerPosition(&m_CustomerPositionDB),
+  m_MarketWatchDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_MarketWatch(&m_MarketWatchDB),
+  m_SecurityDetailDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_SecurityDetail(&m_SecurityDetailDB),
+  m_TradeLookupDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeLookup(&m_TradeLookupDB),
+  m_TradeStatusDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeStatus(&m_TradeStatusDB),
+  m_TradeUpdateDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeUpdate(&m_TradeUpdateDB),
+  m_DataMaintenanceDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_DataMaintenance(&m_DataMaintenanceDB),
+  m_TradeCleanupDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeCleanup(&m_TradeCleanupDB),
+  m_TradeResultDB(m_pDBConnection, pBrokerageHouse->verbose()),
+  m_TradeResult(&m_TradeResultDB)
+{
+}
+
+CBrokerageHouseWorker::~CBrokerageHouseWorker()
+{
+	delete m_pDBConnection;
+}
+
+// new database connection
+CDBConnection *
+CBrokerageHouseWorker::newDBConnection(CBrokerageHouse *pBrokerageHouse)
+{
+	CDBConnection *pDBConnection;
+
+	if (pBrokerageHouse->m_ClientSide == 1) {
+		pDBConnection = new CDBConnectionClientSide(pBrokerageHouse->m_szHost,
+				pBrokerageHouse->m_szDBName, pBrokerageHouse->m_szDBPort,
+				pBrokerageHouse->verbose());
+	} else {
+		pDBConnection = new CDBConnectionServerSide(pBrokerageHouse->m_szHost,
+				pBrokerageHouse->m_szDBName, pBrokerageHouse->m_szDBPort,
+				pBrokerageHouse->verbose());
+	}
+	pDBConnection->setBrokerageHouse(pBrokerageHouse);
+	return pDBConnection;
+}
+
+// Execute the transaction a driver requested, and return its status
+INT32
+CBrokerageHouseWorker::runTransaction(PMsgDriverBrokerage pMessage)
+{
+	INT32 iRet = 0; // transaction return code
+
+	// Serialization failures and deadlocks abort the whole
+	// transaction; retry it instead of counting it as the
+	// intentional TPC-E rollback.
+	bool bRetry;
+	int nRetries = 0;
+	do {
+		bRetry = false;
+		try {
+			//  Parse Txn type
+			switch (pMessage->TxnType) {
+			case BROKER_VOLUME:
+				iRet = m_pBrokerageHouse->RunBrokerVolume(
+						&(pMessage->TxnInput.BrokerVolumeTxnInput),
+						m_BrokerVolume);
+				break;
+			case CUSTOMER_POSITION:
+				iRet = m_pBrokerageHouse->RunCustomerPosition(
+						&(pMessage->TxnInput.CustomerPositionTxnInput),
+						m_CustomerPosition);
+				if (iRet != 0)
+					m_pDBConnection->rollback();
+				break;
+			case MARKET_FEED:
+				iRet = m_pBrokerageHouse->RunMarketFeed(
+						&(pMessage->TxnInput.MarketFeedTxnInput),
+						m_MarketFeed);
+				break;
+			case MARKET_WATCH:
+				iRet = m_pBrokerageHouse->RunMarketWatch(
+						&(pMessage->TxnInput.MarketWatchTxnInput),
+						m_MarketWatch);
+				break;
+			case SECURITY_DETAIL:
+				iRet = m_pBrokerageHouse->RunSecurityDetail(
+						&(pMessage->TxnInput.SecurityDetailTxnInput),
+						m_SecurityDetail);
+				break;
+			case TRADE_LOOKUP:
+				iRet = m_pBrokerageHouse->RunTradeLookup(
+						&(pMessage->TxnInput.TradeLookupTxnInput),
+						m_TradeLookup);
+				break;
+			case TRADE_ORDER:
+				iRet = m_pBrokerageHouse->RunTradeOrder(
+						&(pMessage->TxnInput.TradeOrderTxnInput),
+						m_TradeOrder);
+				break;
+			case TRADE_RESULT:
+				iRet = m_pBrokerageHouse->RunTradeResult(
+						&(pMessage->TxnInput.TradeResultTxnInput),
+						m_TradeResult);
+				if (iRet != 0)
+					m_pDBConnection->rollback();
+				break;
+			case TRADE_STATUS:
+				iRet = m_pBrokerageHouse->RunTradeStatus(
+						&(pMessage->TxnInput.TradeStatusTxnInput),
+						m_TradeStatus);
+				break;
+			case TRADE_UPDATE:
+				iRet = m_pBrokerageHouse->RunTradeUpdate(
+						&(pMessage->TxnInput.TradeUpdateTxnInput),
+						m_TradeUpdate);
+				break;
+			case DATA_MAINTENANCE:
+				iRet = m_pBrokerageHouse->RunDataMaintenance(
+						&(pMessage->TxnInput.DataMaintenanceTxnInput),
+						m_DataMaintenance);
+				break;
+			case TRADE_CLEANUP:
+				iRet = m_pBrokerageHouse->RunTradeCleanup(
+						&(pMessage->TxnInput.TradeCleanupTxnInput),
+						m_TradeCleanup);
+				break;
+			default:
+				cout << "wrong txn type" << endl;
+				iRet = ERR_TYPE_WRONGTXN;
+			}
+		} catch (CDBRetryableError &e) {
+			if (++nRetries <= iMaxRetries) {
+				bRetry = true;
+			} else {
+				pid_t pid = syscall(SYS_gettid);
+				ostringstream msg;
+				msg << time(NULL) << " " << pid << " "
+					<< szTransactionName[pMessage->TxnType]
+					<< " giving up after " << iMaxRetries << " retries " << e
+					<< endl;
+				m_pBrokerageHouse->logErrorMessage(msg.str());
+				iRet = CBaseTxnErr::EXPECTED_ROLLBACK;
+			}
+		} catch (std::string const &e) {
+			pid_t pid = syscall(SYS_gettid);
+			ostringstream msg;
+			msg << time(NULL) << " " << pid << " "
+				<< szTransactionName[pMessage->TxnType] << " " << e << endl;
+			m_pBrokerageHouse->logErrorMessage(msg.str());
+			iRet = CBaseTxnErr::EXPECTED_ROLLBACK;
+		}
+	} while (bRetry);
+
+	if (iRet < 0)
+		cerr << "INVALID RUN : see " << m_pBrokerageHouse->errorLogFilename()
+			 << " for transaction details" << endl;
+
+	return iRet;
+}
 
 void *
 workerThread(void *data)
@@ -37,70 +195,15 @@ workerThread(void *data)
 	PMsgDriverBrokerage pMessage = new TMsgDriverBrokerage;
 	memset(pMessage, 0, sizeof(TMsgDriverBrokerage)); // zero the structure
 
-	CDBConnection *pDBConnection = NULL;
+	CBrokerageHouseWorker *pWorker = NULL;
 
 	try {
 		TMsgBrokerageDriver Reply; // return message
-		INT32 iRet = 0; // transaction return code
 
-		// new database connection
-		if (pThrParam->pBrokerageHouse->m_ClientSide == 1) {
-			pDBConnection = new CDBConnectionClientSide(
-					pThrParam->pBrokerageHouse->m_szHost,
-					pThrParam->pBrokerageHouse->m_szDBName,
-					pThrParam->pBrokerageHouse->m_szDBPort,
-					pThrParam->pBrokerageHouse->verbose());
-		} else {
-			pDBConnection = new CDBConnectionServerSide(
-					pThrParam->pBrokerageHouse->m_szHost,
-					pThrParam->pBrokerageHouse->m_szDBName,
-					pThrParam->pBrokerageHouse->m_szDBPort,
-					pThrParam->pBrokerageHouse->verbose());
-		}
-		pDBConnection->setBrokerageHouse(pThrParam->pBrokerageHouse);
-		CSendToMarket sendToMarket
-				= CSendToMarket(&(pThrParam->pBrokerageHouse->m_fLog),
-						pThrParam->m_szMEEHost, atoi(pThrParam->m_szMEEPort));
-		CMarketFeedDB marketFeedDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CMarketFeed marketFeed = CMarketFeed(&marketFeedDB, &sendToMarket);
-		CTradeOrderDB tradeOrderDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeOrder tradeOrder = CTradeOrder(&tradeOrderDB, &sendToMarket);
-
-		// Initialize all classes that will be used to execute transactions.
-		CBrokerVolumeDB brokerVolumeDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CBrokerVolume brokerVolume = CBrokerVolume(&brokerVolumeDB);
-		CCustomerPositionDB customerPositionDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CCustomerPosition customerPosition
-				= CCustomerPosition(&customerPositionDB);
-		CMarketWatchDB marketWatchDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CMarketWatch marketWatch = CMarketWatch(&marketWatchDB);
-		CSecurityDetailDB securityDetailDB = CSecurityDetailDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CSecurityDetail securityDetail = CSecurityDetail(&securityDetailDB);
-		CTradeLookupDB tradeLookupDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeLookup tradeLookup = CTradeLookup(&tradeLookupDB);
-		CTradeStatusDB tradeStatusDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeStatus tradeStatus = CTradeStatus(&tradeStatusDB);
-		CTradeUpdateDB tradeUpdateDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeUpdate tradeUpdate = CTradeUpdate(&tradeUpdateDB);
-		CDataMaintenanceDB dataMaintenanceDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CDataMaintenance dataMaintenance
-				= CDataMaintenance(&dataMaintenanceDB);
-		CTradeCleanupDB tradeCleanupDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeCleanup tradeCleanup = CTradeCleanup(&tradeCleanupDB);
-		CTradeResultDB tradeResultDB(
-				pDBConnection, pThrParam->pBrokerageHouse->verbose());
-		CTradeResult tradeResult = CTradeResult(&tradeResultDB);
+		// new database connection, and all classes that will be used to
+		// execute transactions
+		pWorker = new CBrokerageHouseWorker(pThrParam->pBrokerageHouse,
+				pThrParam->m_szMEEHost, pThrParam->m_szMEEPort);
 
 		do {
 			try {
@@ -134,115 +237,8 @@ workerThread(void *data)
 				break;
 			}
 
-			// Serialization failures and deadlocks abort the whole
-			// transaction; retry it instead of counting it as the
-			// intentional TPC-E rollback.
-			bool bRetry;
-			int nRetries = 0;
-			do {
-				bRetry = false;
-				try {
-					//  Parse Txn type
-					switch (pMessage->TxnType) {
-					case BROKER_VOLUME:
-						iRet = pThrParam->pBrokerageHouse->RunBrokerVolume(
-								&(pMessage->TxnInput.BrokerVolumeTxnInput),
-								brokerVolume);
-						break;
-					case CUSTOMER_POSITION:
-						iRet = pThrParam->pBrokerageHouse->RunCustomerPosition(
-								&(pMessage->TxnInput.CustomerPositionTxnInput),
-								customerPosition);
-						if (iRet != 0)
-							pDBConnection->rollback();
-						break;
-					case MARKET_FEED:
-						iRet = pThrParam->pBrokerageHouse->RunMarketFeed(
-								&(pMessage->TxnInput.MarketFeedTxnInput),
-								marketFeed);
-						break;
-					case MARKET_WATCH:
-						iRet = pThrParam->pBrokerageHouse->RunMarketWatch(
-								&(pMessage->TxnInput.MarketWatchTxnInput),
-								marketWatch);
-						break;
-					case SECURITY_DETAIL:
-						iRet = pThrParam->pBrokerageHouse->RunSecurityDetail(
-								&(pMessage->TxnInput.SecurityDetailTxnInput),
-								securityDetail);
-						break;
-					case TRADE_LOOKUP:
-						iRet = pThrParam->pBrokerageHouse->RunTradeLookup(
-								&(pMessage->TxnInput.TradeLookupTxnInput),
-								tradeLookup);
-						break;
-					case TRADE_ORDER:
-						iRet = pThrParam->pBrokerageHouse->RunTradeOrder(
-								&(pMessage->TxnInput.TradeOrderTxnInput),
-								tradeOrder);
-						break;
-					case TRADE_RESULT:
-						iRet = pThrParam->pBrokerageHouse->RunTradeResult(
-								&(pMessage->TxnInput.TradeResultTxnInput),
-								tradeResult);
-						if (iRet != 0)
-							pDBConnection->rollback();
-						break;
-					case TRADE_STATUS:
-						iRet = pThrParam->pBrokerageHouse->RunTradeStatus(
-								&(pMessage->TxnInput.TradeStatusTxnInput),
-								tradeStatus);
-						break;
-					case TRADE_UPDATE:
-						iRet = pThrParam->pBrokerageHouse->RunTradeUpdate(
-								&(pMessage->TxnInput.TradeUpdateTxnInput),
-								tradeUpdate);
-						break;
-					case DATA_MAINTENANCE:
-						iRet = pThrParam->pBrokerageHouse->RunDataMaintenance(
-								&(pMessage->TxnInput.DataMaintenanceTxnInput),
-								dataMaintenance);
-						break;
-					case TRADE_CLEANUP:
-						iRet = pThrParam->pBrokerageHouse->RunTradeCleanup(
-								&(pMessage->TxnInput.TradeCleanupTxnInput),
-								tradeCleanup);
-						break;
-					default:
-						cout << "wrong txn type" << endl;
-						iRet = ERR_TYPE_WRONGTXN;
-					}
-				} catch (CDBRetryableError &e) {
-					if (++nRetries <= iMaxRetries) {
-						bRetry = true;
-					} else {
-						pid_t pid = syscall(SYS_gettid);
-						ostringstream msg;
-						msg << time(NULL) << " " << pid << " "
-							<< szTransactionName[pMessage->TxnType]
-							<< " giving up after " << iMaxRetries
-							<< " retries " << e << endl;
-						pThrParam->pBrokerageHouse->logErrorMessage(msg.str());
-						iRet = CBaseTxnErr::EXPECTED_ROLLBACK;
-					}
-				} catch (std::string const &e) {
-					pid_t pid = syscall(SYS_gettid);
-					ostringstream msg;
-					msg << time(NULL) << " " << pid << " "
-						<< szTransactionName[pMessage->TxnType] << " " << e
-						<< endl;
-					pThrParam->pBrokerageHouse->logErrorMessage(msg.str());
-					iRet = CBaseTxnErr::EXPECTED_ROLLBACK;
-				}
-			} while (bRetry);
-
-			if (iRet < 0)
-				cerr << "INVALID RUN : see "
-					 << pThrParam->pBrokerageHouse->errorLogFilename()
-					 << " for transaction details" << endl;
-
-			// send status to driver
-			Reply.iStatus = iRet;
+			// execute the transaction and send its status to driver
+			Reply.iStatus = pWorker->runTransaction(pMessage);
 			try {
 				sockDrv.dbt5Send(
 						reinterpret_cast<void *>(&Reply), sizeof(Reply));
@@ -273,7 +269,7 @@ workerThread(void *data)
 	// close socket connection with the driver, if not already closed by
 	// an error path above
 	sockDrv.dbt5Disconnect();
-	delete pDBConnection;
+	delete pWorker;
 	delete pThrParam;
 	delete pMessage;
 	return NULL;

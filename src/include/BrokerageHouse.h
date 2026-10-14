@@ -55,6 +55,7 @@ private:
 	bool m_Verbose;
 
 	friend void entryWorkerThread(void *); // entry point for worker thread
+	friend class CBrokerageHouseWorker;
 
 	void dumpInputData(PBrokerVolumeTxnInput);
 	void dumpInputData(PCustomerPositionTxnInput);
