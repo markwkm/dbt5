@@ -23,6 +23,9 @@ Usage:
   $(basename "${0}") [OPTIONS] DBMS DIRECTORY
 
 General options:
+  --brokerage-processes=N
+                 N event-driven Brokerage House worker processes per processor,
+                 default 1
   --client-side  use client side application logic, default is to used server
                  side
   --config=CONFIG
@@ -31,7 +34,13 @@ General options:
   --dbaas        database server is a service
   -d SECONDS     SECONDS of the test duration, after warmup,
                  default ${DURATION}
+  --driver-processes=N
+                 N event-driven driver processes per processor, default 1
   -h ADDRESS     ADDRESS of database system, default ${DB_HOSTNAME}
+  --market-connections=N
+                 N event-driven Market Exchange connections to the Brokerage
+                 House, default the number of processors
+  --mode=MODE    run the threaded or event-driven programs, default threaded
   -n NAME        NAME of the database, default ${DBNAME}
   -p PORT        database listening PORT number
   --start USERS  start with USERS users, default ${FIRST}
@@ -70,6 +79,13 @@ WARMUP=60
 # Custom argument handling for hopefully most portability.
 while [ "${#}" -gt 0 ] ; do
 	case "${1}" in
+	(--brokerage-processes)
+		shift
+		RUNARGS="${RUNARGS} --brokerage-processes=${1}"
+		;;
+	(--brokerage-processes=?*)
+		RUNARGS="${RUNARGS} ${1}"
+		;;
 	(--client-side)
 		RUNARGS="${RUNARGS} --client-side"
 		;;
@@ -90,12 +106,33 @@ while [ "${#}" -gt 0 ] ; do
 	(-d?*)
 		DURATION="${1#*-d}"
 		;;
+	(--driver-processes)
+		shift
+		RUNARGS="${RUNARGS} --driver-processes=${1}"
+		;;
+	(--driver-processes=?*)
+		RUNARGS="${RUNARGS} ${1}"
+		;;
 	(-h)
 		shift
 		DB_HOSTNAME=${1}
 		;;
 	(-h?*)
 		DB_HOSTNAME=${1#*-h}
+		;;
+	(--market-connections)
+		shift
+		RUNARGS="${RUNARGS} --market-connections=${1}"
+		;;
+	(--market-connections=?*)
+		RUNARGS="${RUNARGS} ${1}"
+		;;
+	(--mode)
+		shift
+		RUNARGS="${RUNARGS} --mode=${1}"
+		;;
+	(--mode=?*)
+		RUNARGS="${RUNARGS} ${1}"
 		;;
 	(-n)
 		shift

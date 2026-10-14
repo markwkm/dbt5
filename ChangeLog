@@ -16,6 +16,8 @@ vX.Y.Z (YYYY-MM-DD)
   --market-connections options, and the processes and connections settings of
   the configuration file, which set the -F and -C options of the event driven
   programs
+- test-user-scaling: add the --mode, --driver-processes, --brokerage-processes,
+  and --market-connections options, which it passes to dbt5 run
 
 v0.10.14 (2026-08-11)
 
