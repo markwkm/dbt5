@@ -6,6 +6,7 @@ install (FILES BaseInterface.cpp
                DMSUT.cpp
                DMSUTtest.cpp
                MEESUT.cpp
+               MEESUT2.cpp
                MEESUTtest.cpp
                TxnHarnessSendToMarket.cpp
                TxnHarnessSendToMarketTest.cpp

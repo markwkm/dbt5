@@ -7,6 +7,9 @@ vX.Y.Z (YYYY-MM-DD)
 - Add BrokerageHouseMain2, a Brokerage House that executes transactions with
   libev event loops in several worker processes instead of a thread for each
   driver connection
+- Add MarketExchangeMain2, a Market Exchange that uses a libev event loop
+  instead of threads, and sends Trade-Result and Market-Feed transactions over
+  several connections to the Brokerage House
 
 v0.10.14 (2026-08-11)
 

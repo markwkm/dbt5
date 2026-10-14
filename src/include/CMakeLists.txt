@@ -22,9 +22,11 @@ install (FILES BaseInterface.h
                Driver.h
                Driver2.h
                MarketExchange.h
+               MarketExchange2.h
                MarketFeedDB.h
                MarketWatchDB.h
                MEESUT.h
+               MEESUT2.h
                MEESUTtest.h
                SecurityDetailDB.h
                TradeCleanupDB.h

@@ -45,10 +45,10 @@ Driver
 Event Driven Programs
 =====================
 
-The driver and the Brokerage House are also built a second time to use libev
-event loops in place of threads.  The event driven programs accept the same
-options as the threaded programs, plus the options that this section describes.
-The workload runner, **dbt5 run**, starts the threaded programs.
+Each of the three programs is also built a second time to use libev event loops
+in place of threads.  The event driven programs accept the same options as the
+threaded programs, plus the options that this section describes.  The workload
+runner, **dbt5 run**, starts the threaded programs.
 
 The event driven driver, **DriverMain2**, forks one process for each
 processor that it may run on, pins each process to its processor, and divides
@@ -68,6 +68,17 @@ socket.  The ``-F`` option sets the number of worker processes per processor,
 1 by default.  A request waits while its worker process executes a
 transaction for another connection, so when there are more connections than
 worker processes, more worker processes reduce response times.
+
+The event driven Market Exchange, **MarketExchangeMain2**, runs in a single
+process, because the Market Exchange Emulator keeps the state of every
+pending trade.  It queues the Trade-Result and Market-Feed transactions that
+the emulator generates, and sends each one over a connection to the
+Brokerage House that is not waiting for a reply.  The ``-C`` option sets the
+number of connections, by default the number of processors that the program
+may run on.  The default matches the number of worker processes that the
+event driven Brokerage House starts by default.  With a single connection,
+these transactions run one at a time, and each one also waits while the
+worker process that serves the connection executes other transactions.
 
 Killing the parent process of the event driven driver or Brokerage House
 kills its other processes too.  The kit stops a program by killing the process

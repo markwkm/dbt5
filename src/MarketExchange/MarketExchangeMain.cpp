@@ -10,7 +10,12 @@
 
 #include <unistd.h>
 
+#ifdef LIBEV
+#include "DBT5Util.h"
+#include "MarketExchange2.h"
+#else
 #include "MarketExchange.h"
+#endif
 #include "DBT5Consts.h"
 
 // Establish defaults for command line options
@@ -23,6 +28,13 @@ TIdent iConfiguredCustomerCount = iDefaultCustomerCount;
 TIdent iActiveCustomerCount = iDefaultCustomerCount;
 
 bool verbose = false;
+#ifdef LIBEV
+// Connections to the Brokerage House, set to the number of processors
+// available by default.  A Brokerage House with worker processes starts that
+// many by default, and a Trade-Result or Market-Feed transaction waits while
+// the worker process that serves its connection executes other transactions.
+int iBHConnections;
+#endif
 
 // EGen flat_ing directory location
 char szFileLoc[iMaxPath + 1];
@@ -33,11 +45,19 @@ char outputDirectory[iMaxPath + 1] = ".";
 void
 usage()
 {
+#ifdef LIBEV
+	cout << "Usage: MarketExchangeMain2 [options]" << endl << endl;
+#else
 	cout << "Usage: MarketExchangeMain [options]" << endl << endl;
+#endif
 	cout << "   Option      Default     Description" << endl;
 	cout << "   ==========  ==========  =============================" << endl;
 	printf("   -c integer  %-10ld  Active customer count\n",
 			iActiveCustomerCount);
+#ifdef LIBEV
+	printf("   -C integer  %-10d  Brokerage House connections\n",
+			iBHConnections);
+#endif
 	cout << "   -i string               Location of EGen flat_in directory"
 		 << endl;
 	printf("   -l integer  %-10d  Socket listen port\n", iListenPort);
@@ -59,11 +79,26 @@ parse_command_line(int argc, char *argv[])
 
 	// getopt reports missing option arguments and unknown options,
 	// unlike the old hand rolled parser, which silently accepted them.
-	while ((ch = getopt(argc, argv, "c:h:i:l:o:p:t:v")) != -1) {
+#ifdef LIBEV
+	const char *optstring = "c:C:h:i:l:o:p:t:v";
+#else
+	const char *optstring = "c:h:i:l:o:p:t:v";
+#endif
+	while ((ch = getopt(argc, argv, optstring)) != -1) {
 		switch (ch) {
 		case 'c':
 			iActiveCustomerCount = atol(optarg);
 			break;
+#ifdef LIBEV
+		case 'C':
+			iBHConnections = atoi(optarg);
+			if (iBHConnections < 1) {
+				cerr << "Error: invalid number of connections for -C: "
+					 << optarg << endl;
+				exit(1);
+			}
+			break;
+#endif
 		case 'h':
 			strncpy(szBHaddr, optarg, iMaxHostname);
 			szBHaddr[iMaxHostname] = '\0';
@@ -115,6 +150,9 @@ main(int argc, char *argv[])
 {
 	// Establish defaults for command line options
 	strncpy(szFileLoc, "flat_in", iMaxPath);
+#ifdef LIBEV
+	iBHConnections = (int) availableProcessors().size();
+#endif
 
 	cout << "dbt5 - Market Exchange Main" << endl;
 
@@ -141,13 +179,23 @@ main(int argc, char *argv[])
 	cout << "Active customer count: " << iActiveCustomerCount << endl;
 	cout << "Brokerage House address: " << szBHaddr << endl;
 	cout << "Brokerage House port: " << iBHlistenPort << endl;
+#ifdef LIBEV
+	cout << "Brokerage House connections: " << iBHConnections << endl;
+#endif
 
 	try {
 		const DataFileManager inputFiles(szFileLoc, iConfiguredCustomerCount,
 				iActiveCustomerCount, TPCE::DataFileManager::IMMEDIATE_LOAD);
+#ifdef LIBEV
+		CMarketExchange2 MarketExchange(inputFiles, szFileLoc, 1,
+				iConfiguredCustomerCount, iActiveCustomerCount, iListenPort,
+				szBHaddr, iBHlistenPort, outputDirectory, verbose,
+				iBHConnections);
+#else
 		CMarketExchange MarketExchange(inputFiles, szFileLoc, 1,
 				iConfiguredCustomerCount, iActiveCustomerCount, iListenPort,
 				szBHaddr, iBHlistenPort, outputDirectory, verbose);
+#endif
 		cout << "Market Exchange started, waiting for trade requests..."
 			 << endl;
 
@@ -176,7 +224,9 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
+#ifndef LIBEV
 	pthread_exit(NULL);
+#endif
 
 	cout << "Market Exchange closed for business." << endl;
 	return (0);
