@@ -12,7 +12,11 @@
 
 #include <unistd.h>
 
+#ifdef LIBEV
+#include "Driver2.h"
+#else
 #include "Driver.h"
+#endif
 #include "DBT5Consts.h"
 
 // Establish defaults for command line options
@@ -28,6 +32,9 @@ int iTestDuration = 0;
 int iSleep = 1000; // msec between thread creation
 int iUsers = 0; // # users
 int iPacingDelay = 0;
+#ifdef LIBEV
+int iProcessesPerProcessor = 1;
+#endif
 
 char szInDir[iMaxPath + 1]; // path to EGen input files
 char outputDirectory[iMaxPath + 1] = "."; // path to output files
@@ -38,7 +45,11 @@ UINT32 iSeed = 0;
 void
 usage()
 {
+#ifdef LIBEV
+	cout << "Usage: DriverMain2 {options}" << endl
+#else
 	cout << "Usage: DriverMain {options}" << endl
+#endif
 		 << endl
 		 << "   Option      Default    Description" << endl
 		 << "   ==========  =========  ==============================="
@@ -47,6 +58,10 @@ usage()
 			iActiveCustomerCount);
 	printf("   -d integer             Duration of the test (seconds)\n");
 	printf("   -f integer  %-9d  # of customers per 1 TRTPS\n", iScaleFactor);
+#ifdef LIBEV
+	printf("   -F integer  %-9d  # of processes per processor\n",
+			iProcessesPerProcessor);
+#endif
 	printf("   -h string   %-9s  Brokerage House address\n", szBHaddr);
 	printf("   -i string   %-9s  Path to EGen flat_in directory\n", szInDir);
 	printf("   -n integer  %-9d  millisecond delay between transactions\n",
@@ -62,8 +77,13 @@ usage()
 	printf("   -u integer             # of Users\n");
 	printf("   -w integer  %-9d  # of Days of Initial Trades\n",
 			iDaysOfInitialTrades);
+#ifdef LIBEV
+	printf("   -y integer  %-9d  millisecond delay between starting users\n",
+			iSleep);
+#else
 	printf("   -y integer  %-9d  millisecond delay between thread creation\n",
 			iSleep);
+#endif
 }
 
 // Parse command line
@@ -74,7 +94,12 @@ parse_command_line(int argc, char *argv[])
 
 	// getopt reports missing option arguments and unknown options,
 	// unlike the old hand rolled parser, which silently accepted them.
-	while ((ch = getopt(argc, argv, "c:d:f:h:i:n:o:p:r:t:u:w:y:")) != -1) {
+#ifdef LIBEV
+	const char *optstring = "c:d:f:F:h:i:n:o:p:r:t:u:w:y:";
+#else
+	const char *optstring = "c:d:f:h:i:n:o:p:r:t:u:w:y:";
+#endif
+	while ((ch = getopt(argc, argv, optstring)) != -1) {
 		switch (ch) {
 		case 'c':
 			iActiveCustomerCount = atol(optarg);
@@ -85,6 +110,16 @@ parse_command_line(int argc, char *argv[])
 		case 'f':
 			iScaleFactor = atoi(optarg);
 			break;
+#ifdef LIBEV
+		case 'F':
+			iProcessesPerProcessor = atoi(optarg);
+			if (iProcessesPerProcessor < 1) {
+				cerr << "Error: invalid number of processes for -F: " << optarg
+					 << endl;
+				exit(1);
+			}
+			break;
+#endif
 		case 'h':
 			strncpy(szBHaddr, optarg, iMaxHostname);
 			szBHaddr[iMaxHostname] = '\0';
@@ -254,7 +289,12 @@ main(int argc, char *argv[])
 	cout << "Days of initial trades: " << iDaysOfInitialTrades << endl;
 	cout << "Scale Factor: " << iScaleFactor << endl << endl;
 
+#ifdef LIBEV
+	cout << "Users: " << iUsers << endl;
+	cout << "Processes per processor: " << iProcessesPerProcessor << endl;
+#else
 	cout << "User Threads: " << iUsers << endl;
+#endif
 	cout << "Sleep between creating users: " << iSleep << endl << endl;
 
 	cout << "Test duration (sec): " << iTestDuration << endl;
@@ -264,10 +304,17 @@ main(int argc, char *argv[])
 	try {
 		const DataFileManager inputFiles(szInDir, iConfiguredCustomerCount,
 				iActiveCustomerCount, TPCE::DataFileManager::IMMEDIATE_LOAD);
+#ifdef LIBEV
+		CDriver2 Driver(inputFiles, szInDir, iConfiguredCustomerCount,
+				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades,
+				iSeed, szBHaddr, iBHListenerPort, iUsers, iPacingDelay,
+				outputDirectory, iProcessesPerProcessor);
+#else
 		CDriver Driver(inputFiles, szInDir, iConfiguredCustomerCount,
 				iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades,
 				iSeed, szBHaddr, iBHListenerPort, iUsers, iPacingDelay,
 				outputDirectory);
+#endif
 		Driver.runTest(iSleep, iTestDuration);
 
 	} catch (CBaseErr *pErr) {

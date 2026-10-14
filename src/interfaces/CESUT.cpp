@@ -15,6 +15,13 @@ CCESUT::CCESUT(char *outputDirectory, char *addr, const int iListenPort)
 {
 }
 
+// Constructor for an event loop, see CBaseInterface
+CCESUT::CCESUT(
+		ofstream *pfMix, ofstream *pfLog, char *addr, const int iListenPort)
+: CBaseInterface(pfMix, pfLog, addr, iListenPort)
+{
+}
+
 // Destructor
 CCESUT::~CCESUT() {}
 

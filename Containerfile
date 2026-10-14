@@ -14,7 +14,8 @@ ENV LANG=en_US.UTF-8
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential \
-            ca-certificates cmake git postgresql-server-dev-${PG_MAJOR} && \
+            ca-certificates cmake git libev-dev libev4t64 \
+            postgresql-server-dev-${PG_MAJOR} && \
     rm -rf /var/lib/apt/lists/* && \
     localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias \
             en_US.UTF-8
@@ -32,7 +33,7 @@ RUN cmake -S . -B /tmp/build -DCMAKE_INSTALL_PREFIX=/usr && \
     dbt5-build-egen --include-dir=src/include --patch-dir=patches \
         --source-dir=src /opt/egen && \
     make -C storedproc/pgsql/c USE_PGXS=1 install && \
-    apt-get purge -y build-essential cmake git \
+    apt-get purge -y build-essential cmake git libev-dev \
             postgresql-server-dev-${PG_MAJOR} && \
     apt-get autoremove -y --purge && \
     rm -rf /tmp/build /usr/local/src/dbt5

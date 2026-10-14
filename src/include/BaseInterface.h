@@ -31,8 +31,16 @@ private:
 	pid_t m_pid;
 	ofstream m_fLog; // error log file
 	ofstream m_fMix; // mix log file
+	// The logs written to: m_fLog and m_fMix, or the logs that every
+	// interface in an event driven process shares.
+	ofstream *m_pfLog;
+	ofstream *m_pfMix;
+
+	// Whether the event loop, instead of talkToSUT(), reads each reply.
+	bool m_bEventLoop;
 
 	// The request sent and not yet answered.
+	bool m_bReplyPending;
 	eTxnType m_eTxnType;
 	CDateTime m_StartTime;
 
@@ -40,12 +48,15 @@ private:
 
 public:
 	CBaseInterface(const char *, char *, char *, const int);
+	CBaseInterface(ofstream *, ofstream *, char *, const int);
 	~CBaseInterface(void);
 	bool biConnect();
 	bool biDisconnect();
 
 	bool sendRequest(PMsgDriverBrokerage);
 	bool receiveReply();
+	bool replyPending();
+	int getSocketFd();
 
 	void logStopTime();
 };

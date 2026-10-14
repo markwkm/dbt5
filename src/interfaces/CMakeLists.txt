@@ -2,6 +2,7 @@ install (FILES BaseInterface.cpp
                CESUT.cpp
                CMakeLists.txt
                CSocket.cpp
+               DBT5Util.cpp
                DMSUT.cpp
                DMSUTtest.cpp
                MEESUT.cpp

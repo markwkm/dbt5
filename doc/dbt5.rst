@@ -42,6 +42,28 @@ Driver
 **Driver** emulates customers and drives the workload.  It implements
 **EGenDriverCE**.
 
+Event Driven Programs
+=====================
+
+The driver is also built a second time to use libev event loops in place of
+threads.  The event driven driver accepts the same options as the threaded
+driver, plus the options that this section describes.  The workload runner,
+**dbt5 run**, starts the threaded driver.
+
+The event driven driver, **DriverMain2**, forks one process for each
+processor that it may run on, pins each process to its processor, and divides
+the users evenly among the processes.  Each process emulates its users with
+one event loop, and writes its own mix log.  The users start one at a time at
+the interval that the ``-y`` option sets, as they do with threads, so the
+ramp-up time does not change.  The parent process runs the Data-Maintenance
+transaction once per minute.  The ``-F`` option sets the number of processes
+per processor, 1 by default.
+
+Killing the parent process of the event driven driver kills its other
+processes too.  The kit stops a program by killing the process whose process
+identifier the program writes to a file, so it stops the event driven driver
+the same way that it stops the threaded driver.
+
 ----------------
 Installing DBT-5
 ----------------
@@ -64,6 +86,8 @@ required:
 * Database development libraries and header files
     * PostgreSQL https://www.postgresql.org
         * psql
+* libev development library and header files
+  https://software.schmorp.de/pkg/libev.html
 * SQLite https://www.sqlite.org/index.html is required for processing test
   results
 

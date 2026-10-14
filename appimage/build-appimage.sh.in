@@ -16,6 +16,7 @@ set -e
 APPDIR="@CMAKE_BINARY_DIR@/../AppDir"
 APPIMAGE_SOURCE_DIR="@CMAKE_SOURCE_DIR@/appimage"
 APPIMAGETOOL="@APPIMAGETOOL@"
+DRIVER2="${APPDIR}/opt/egen/bin/DriverMain2"
 FLAMEGRAPH_URL="https://raw.githubusercontent.com/brendangregg/FlameGraph/master"
 GNUPLOT="${APPDIR}/usr/bin/gnuplot"
 JQ="${APPDIR}/usr/bin/jq"
@@ -148,6 +149,7 @@ curl -SsL -o "${APPDIR}/usr/share/licenses/flamegraph/cddl1.txt" \
 
 mkdir -p "${APPDIR}/usr/lib/"
 cp -paL \
+   "$(lib_path "${DRIVER2}" 'libev\.')" \
    "$(lib_path "${GNUPLOT}" 'libcairo\.')" \
    "$(lib_path "${GNUPLOT}" 'libfreetype\.')" \
    "$(lib_path "${GNUPLOT}" 'libfribidi\.')" \

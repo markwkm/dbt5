@@ -15,9 +15,11 @@ install (FILES BaseInterface.h
                DBConnectionClientSide.h
                DBConnectionServerSide.h
                DBT5Consts.h
+               DBT5Util.h
                DMSUT.h
                DMSUTtest.h
                Driver.h
+               Driver2.h
                MarketExchange.h
                MarketFeedDB.h
                MarketWatchDB.h

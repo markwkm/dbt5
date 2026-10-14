@@ -22,6 +22,7 @@ class CCESUT: public CCESUTInterface, public CBaseInterface
 {
 public:
 	CCESUT(char *, char *, const int);
+	CCESUT(ofstream *, ofstream *, char *, const int);
 	~CCESUT(void);
 
 	bool BrokerVolume(PBrokerVolumeTxnInput);

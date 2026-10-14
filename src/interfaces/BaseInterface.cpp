@@ -13,9 +13,13 @@
 #include "BaseInterface.h"
 #include "DBT5Consts.h"
 
+// The interface opens its own mix and error logs, and talkToSUT() waits for
+// each reply, blocking the thread that calls it.
 CBaseInterface::CBaseInterface(const char type[3], char *outputDirectory,
 		char *addr, const int iListenPort)
-: m_szBHAddress(addr), m_iBHlistenPort(iListenPort), m_eTxnType(NULL_TXN)
+: m_szBHAddress(addr), m_iBHlistenPort(iListenPort), m_pfLog(&m_fLog),
+  m_pfMix(&m_fMix), m_bEventLoop(false), m_bReplyPending(false),
+  m_eTxnType(NULL_TXN)
 {
 	m_pid = syscall(SYS_gettid);
 
@@ -33,6 +37,22 @@ CBaseInterface::CBaseInterface(const char type[3], char *outputDirectory,
 	snprintf(filename, sizeof(filename), "%s/error-%s-%d.log", outputDirectory,
 			type, m_pid);
 	m_fLog.open(filename, ios::out);
+}
+
+// The interface writes to the mix and error logs that every interface in the
+// process shares, and talkToSUT() only sends the request: the event loop
+// calls receiveReply() once getSocketFd() is readable.  For programs that run
+// many interfaces from one event loop.
+CBaseInterface::CBaseInterface(
+		ofstream *pfMix, ofstream *pfLog, char *addr, const int iListenPort)
+: m_szBHAddress(addr), m_iBHlistenPort(iListenPort), m_pfLog(pfLog),
+  m_pfMix(pfMix), m_bEventLoop(true), m_bReplyPending(false),
+  m_eTxnType(NULL_TXN)
+{
+	m_pid = syscall(SYS_gettid);
+
+	sock = new CSocket(m_szBHAddress, m_iBHlistenPort);
+	biConnect();
 }
 
 // destructor
@@ -80,12 +100,15 @@ CBaseInterface::biDisconnect()
 }
 
 // Send request to BrokerageHouse, then receive reply and calculate response
-// time
+// time, unless the event loop receives the reply.  When it does, the return
+// value only reports whether the request was sent.
 bool
 CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 {
 	if (!sendRequest(pRequest))
 		return false;
+	if (m_bEventLoop)
+		return true;
 	return receiveReply();
 }
 
@@ -118,6 +141,7 @@ CBaseInterface::sendRequest(PMsgDriverBrokerage pRequest)
 		// for a reply that cannot arrive.
 		return false;
 	}
+	m_bReplyPending = true;
 	return true;
 }
 
@@ -128,6 +152,7 @@ CBaseInterface::receiveReply()
 	TMsgBrokerageDriver Reply; // reply message from BrokerageHouse
 	memset(&Reply, 0, sizeof(Reply));
 
+	m_bReplyPending = false;
 	try {
 		sock->dbt5Receive(reinterpret_cast<void *>(&Reply), sizeof(Reply));
 	} catch (CSocketErr *pErr) {
@@ -163,13 +188,26 @@ CBaseInterface::receiveReply()
 	return false;
 }
 
+// Whether a request was sent and its reply not received yet
+bool
+CBaseInterface::replyPending()
+{
+	return m_bReplyPending;
+}
+
+int
+CBaseInterface::getSocketFd()
+{
+	return sock->getSocketFd();
+}
+
 // Log Transaction Response Times
 void
 CBaseInterface::logResponseTime(int iStatus, int iTxnType, double dRT)
 {
-	m_fMix << (long long) time(NULL) << "," << iTxnType << "," << iStatus
-		   << "," << dRT << "," << m_pid << endl;
-	m_fMix.flush();
+	*m_pfMix << (long long) time(NULL) << "," << iTxnType << "," << iStatus
+			 << "," << dRT << "," << m_pid << endl;
+	m_pfMix->flush();
 }
 
 // logErrorMessage
@@ -177,13 +215,13 @@ void
 CBaseInterface::logErrorMessage(const string sErr)
 {
 	cerr << sErr;
-	m_fLog << sErr;
-	m_fLog.flush();
+	*m_pfLog << sErr;
+	m_pfLog->flush();
 }
 
 void
 CBaseInterface::logStopTime()
 {
-	m_fMix << time(NULL) << ",STOP,,," << m_pid << endl;
-	m_fMix.flush();
+	*m_pfMix << time(NULL) << ",STOP,,," << m_pid << endl;
+	m_pfMix->flush();
 }

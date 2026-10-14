@@ -51,6 +51,7 @@ RUN set -e; \
                 fribidi:libfribidi0 \
                 graphite2:libgraphite2-3 \
                 harfbuzz:libharfbuzz0b \
+                libev:libev4 \
                 libjq:libjq1 \
                 libonig:libonig5 \
                 libpng:libpng16-16 \

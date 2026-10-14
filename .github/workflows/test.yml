@@ -23,8 +23,8 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ libpq-dev make postgresql \
-                  postgresql-server-dev-all shunit2
+          sudo apt-get install -y cmake g++ libev-dev libpq-dev make \
+                  postgresql postgresql-server-dev-all shunit2
 
       # The tests locate the server programs with pg_config --bindir,
       # but Debian's /usr/bin/pg_config (libpq-dev) reports a bindir

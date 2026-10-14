@@ -103,6 +103,15 @@ EGENDIR="$(realpath "${1}")"
 shift
 EGENOBJDIR="${EGENDIR}/obj"
 
+# The event driven programs use libev.  Check for its header before changing
+# anything in DIRECTORY, so that a missing package is reported as such
+# instead of as a compiler error.
+if ! printf '#include <ev.h>\n' | "${CXX:-g++}" -E -x c++ - > /dev/null 2>&1
+then
+	echo "ERROR: cannot find ev.h, install the libev development files"
+	exit 1
+fi
+
 cp -pr \
 		"${SOURCEDIR}"/interfaces \
 		"${SOURCEDIR}"/MarketExchange \
