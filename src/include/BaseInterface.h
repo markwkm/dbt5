@@ -32,6 +32,10 @@ private:
 	ofstream m_fLog; // error log file
 	ofstream m_fMix; // mix log file
 
+	// The request sent and not yet answered.
+	eTxnType m_eTxnType;
+	CDateTime m_StartTime;
+
 	void logResponseTime(int, int, double);
 
 public:
@@ -39,6 +43,9 @@ public:
 	~CBaseInterface(void);
 	bool biConnect();
 	bool biDisconnect();
+
+	bool sendRequest(PMsgDriverBrokerage);
+	bool receiveReply();
 
 	void logStopTime();
 };

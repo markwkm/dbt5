@@ -15,7 +15,7 @@
 
 CBaseInterface::CBaseInterface(const char type[3], char *outputDirectory,
 		char *addr, const int iListenPort)
-: m_szBHAddress(addr), m_iBHlistenPort(iListenPort)
+: m_szBHAddress(addr), m_iBHlistenPort(iListenPort), m_eTxnType(NULL_TXN)
 {
 	m_pid = syscall(SYS_gettid);
 
@@ -79,19 +79,27 @@ CBaseInterface::biDisconnect()
 	}
 }
 
-// Connect to BrokerageHouse, send request, receive reply, and calculate RT
+// Send request to BrokerageHouse, then receive reply and calculate response
+// time
 bool
 CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 {
+	if (!sendRequest(pRequest))
+		return false;
+	return receiveReply();
+}
+
+// Send request to BrokerageHouse and start timing it
+bool
+CBaseInterface::sendRequest(PMsgDriverBrokerage pRequest)
+{
 	int length = 0;
-	TMsgBrokerageDriver Reply; // reply message from BrokerageHouse
-	memset(&Reply, 0, sizeof(Reply));
 
 	// record txn start time -- please, see TPC-E specification clause
 	// 6.2.1.3
-	CDateTime StartTime; // to time the transaction
+	m_StartTime.Set();
+	m_eTxnType = pRequest->TxnType;
 
-	// send and wait for response
 	try {
 		length = sock->dbt5Send(
 				reinterpret_cast<void *>(pRequest), sizeof(*pRequest));
@@ -110,16 +118,25 @@ CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 		// for a reply that cannot arrive.
 		return false;
 	}
+	return true;
+}
+
+// Receive reply to the request sendRequest() sent, and log its RT
+bool
+CBaseInterface::receiveReply()
+{
+	TMsgBrokerageDriver Reply; // reply message from BrokerageHouse
+	memset(&Reply, 0, sizeof(Reply));
+
 	try {
-		length = sock->dbt5Receive(
-				reinterpret_cast<void *>(&Reply), sizeof(Reply));
+		sock->dbt5Receive(reinterpret_cast<void *>(&Reply), sizeof(Reply));
 	} catch (CSocketErr *pErr) {
 		logResponseTime(-1, 0, -2);
 
 		ostringstream msg;
 		msg << time(NULL) << " " << m_pid << " "
-			<< szTransactionName[pRequest->TxnType] << ": " << endl
-			<< "Error receiving " << length << " bytes of data" << endl
+			<< szTransactionName[m_eTxnType] << ": " << endl
+			<< "Error receiving " << sizeof(Reply) << " bytes of data" << endl
 			<< pErr->ErrorText() << endl;
 		logErrorMessage(msg.str());
 		if (pErr->getAction() == CSocketErr::ERR_SOCKET_CLOSED)
@@ -136,10 +153,10 @@ CBaseInterface::talkToSUT(PMsgDriverBrokerage pRequest)
 	// calculate txn response time
 	CDateTime TxnTime;
 	TxnTime.Set(0); // clear time
-	TxnTime.Add(0, (int) ((EndTime - StartTime) * MsPerSecond)); // add ms
+	TxnTime.Add(0, (int) ((EndTime - m_StartTime) * MsPerSecond)); // add ms
 
 	// log response time
-	logResponseTime(Reply.iStatus, pRequest->TxnType, TxnTime.MSec() / 1000.0);
+	logResponseTime(Reply.iStatus, m_eTxnType, TxnTime.MSec() / 1000.0);
 
 	if (Reply.iStatus == CBaseTxnErr::SUCCESS)
 		return true;

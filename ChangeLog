@@ -1,3 +1,7 @@
+vX.Y.Z (YYYY-MM-DD)
+
+- Split handling of requests and replies between components into two functions
+
 v0.10.14 (2026-08-11)
 
 - Mark non-release builds in the version string with the commit they came
