@@ -334,6 +334,9 @@ Usage:
 
 General options:
   -b PARAMETERS  database PARAMETERS
+  --brokerage-processes=N
+                 N event-driven Brokerage House worker processes per processor,
+                 default 1
   -c CUSTOMERS   active CUSTOMERS, default to total customers
   --client-side  use client side application logic, default is to used server
                  side
@@ -342,10 +345,15 @@ General options:
   -d SECONDS     test duration in SECONDS
   --dbaas        flag to signify that the database is a service so only collect
                  database statistics
+  --driver-processes=N
+                 N event-driven driver processes per processor, default 1
   -f SCALE_FACTOR
                  default ${SCALE_FACTOR}
   -h HOSTNAME    database hostname, default localhost
   -l DELAY       pacing DELAY in seconds, default ${PACING_DELAY}
+  --market-connections=N
+                 N event-driven Market Exchange connections to the Brokerage
+                 House, default the number of processors
   --mode=MODE    run the threaded or event-driven programs, default threaded
   -n NAME        database name, default ${DB_NAME}
   --privileged   run tests as a privileged database user
@@ -381,19 +389,40 @@ validate_parameter()
 	fi
 }
 
+# Exit unless the value of a long option is empty or a positive integer.
+validate_count()
+{
+	if [ -n "${2}" ] && ! echo "${2}" | grep -q -E "^[1-9][0-9]*$"; then
+		usage "wrong argument '${2}' for parameter '--${1}'"
+		exit 1
+	fi
+}
+
+# Print an option of the event driven programs, which the threaded programs do
+# not accept, when it has a value.
+event_driven_arg()
+{
+	if [ "${MODE}" = "event-driven" ] && [ -n "${2}" ]; then
+		echo "${1} ${2}"
+	fi
+}
+
 BROKERAGELIST=""
+BROKERAGE_PROCESSES=""
 CLIENTSIDEARG=""
 DB_NAME="dbt5"
 DB_PORT_ARG=""
 DBAAS=0
 DBLIST=""
 DRIVERLIST=""
+DRIVER_PROCESSES=""
 EGENHOME=""
 CONFIGFILE=""
 CUSTOMERS_INSTANCE=0
 CUSTOMERS_TOTAL=5000
 ITD=300
 MARKETLIST=""
+MARKET_CONNECTIONS=""
 MODE="threaded"
 PROFILE=0
 SCALE_FACTOR=500
@@ -425,6 +454,13 @@ while [ "${#}" -gt 0 ] ; do
 		shift
 		DB_PARAMS="${1}"
 		;;
+	(--brokerage-processes)
+		shift
+		BROKERAGE_PROCESSES="${1}"
+		;;
+	(--brokerage-processes=?*)
+		BROKERAGE_PROCESSES="${1#*--brokerage-processes=}"
+		;;
 	(-c)
 		shift
 		# Configured customer count
@@ -450,6 +486,13 @@ while [ "${#}" -gt 0 ] ; do
 	(--dbaas)
 		DBAAS="1"
 		;;
+	(--driver-processes)
+		shift
+		DRIVER_PROCESSES="${1}"
+		;;
+	(--driver-processes=?*)
+		DRIVER_PROCESSES="${1#*--driver-processes=}"
+		;;
 	(-f)
 		shift
 		SCALE_FACTOR=$(echo "${1}" | grep -E "^[0-9]+$")
@@ -463,6 +506,13 @@ while [ "${#}" -gt 0 ] ; do
 		shift
 		PACING_DELAY="$(echo "${1}" | grep -E "^[0-9]+$")"
 		validate_parameter "l" "${1}" "${PACING_DELAY}"
+		;;
+	(--market-connections)
+		shift
+		MARKET_CONNECTIONS="${1}"
+		;;
+	(--market-connections=?*)
+		MARKET_CONNECTIONS="${1#*--market-connections=}"
 		;;
 	(--mode)
 		shift
@@ -659,6 +709,19 @@ BROKERAGE_PROGRAM="BrokerageHouseMain${PROGRAM_SUFFIX}"
 MARKET_PROGRAM="MarketExchangeMain${PROGRAM_SUFFIX}"
 DRIVER_PROGRAM="DriverMain${PROGRAM_SUFFIX}"
 
+validate_count brokerage-processes "${BROKERAGE_PROCESSES}"
+validate_count driver-processes "${DRIVER_PROCESSES}"
+validate_count market-connections "${MARKET_CONNECTIONS}"
+if [ "${MODE}" = "threaded" ] && \
+		[ -n "${BROKERAGE_PROCESSES}${DRIVER_PROCESSES}${MARKET_CONNECTIONS}" ]
+then
+	echo "WARNING: --brokerage-processes, --driver-processes, and"
+	echo "--market-connections apply only to event-driven mode, ignoring them"
+fi
+BHPROCESSESARG="$(event_driven_arg -F "${BROKERAGE_PROCESSES}")"
+DRIVERPROCESSESARG="$(event_driven_arg -F "${DRIVER_PROCESSES}")"
+MEECONNECTIONSARG="$(event_driven_arg -C "${MARKET_CONNECTIONS}")"
+
 if [ -z "${OUTPUT_DIR}" ]; then
 	usage "specify the location for results with the DIRECTORY argument, which must not exist"
 	exit 1
@@ -770,7 +833,7 @@ echo
 if [ "${CONFIGFILE}" = "" ]; then
 	eval "${EGENHOME}/bin/${BROKERAGE_PROGRAM} ${DB_HOSTNAME_ARG} \
 			-d ${DB_NAME} ${DB_PORT_ARG} -o ${BH_OUTPUT_DIR} ${CLIENTSIDEARG} \
-			${VERBOSE_FLAG} > ${BH_OUTPUT_DIR}/bh.out 2>&1" &
+			${BHPROCESSESARG} ${VERBOSE_FLAG} > ${BH_OUTPUT_DIR}/bh.out 2>&1" &
 else
 	BROKERAGES="$(toml get "${CONFIGFILE}" . | jq -r '.brokerage | length')"
 
@@ -811,6 +874,13 @@ else
 			DB_PORT_ARG="-p ${TMP}"
 		fi
 
+		TMP="$(toml get "${CONFIGFILE}" brokerage | \
+			jq -r ".[${INDEX}].processes")"
+		if [ "${TMP}" = "null" ]; then
+			TMP="${BROKERAGE_PROCESSES}"
+		fi
+		BHPROCESSESARG="$(event_driven_arg -F "${TMP}")"
+
 		if [ ! "${BROKERAGE_HOSTNAME}" = "localhost" ]; then
 			BROKERAGE_COMMAND="${SSH} ${BROKERAGE_HOSTNAME}"
 		else
@@ -828,7 +898,7 @@ else
 		eval "${BROKERAGE_COMMAND} ${EGENHOME}/bin/${BROKERAGE_PROGRAM} \
 				${BHPORTARG} -m ${MARKET_HOSTNAME} ${MEEPORTARG} \
 				${DB_HOSTNAME_ARG} -d ${DB_NAME} ${DB_PORT_ARG} \
-				-o ${TMPDIR} > ${TMPDIR}/bh.out 2>&1" &
+				${BHPROCESSESARG} -o ${TMPDIR} > ${TMPDIR}/bh.out 2>&1" &
 	done
 	echo
 fi
@@ -844,7 +914,8 @@ echo "## 2. Starting Market Exchange server"
 if [ "${CONFIGFILE}" = "" ]; then
 	eval "${EGENHOME}/bin/${MARKET_PROGRAM} -c ${CUSTOMERS_INSTANCE} \
 			-t ${CUSTOMERS_TOTAL} -i ${EGENHOME}/flat_in -o ${MEE_OUTPUT_DIR} \
-			${VERBOSE_FLAG} > ${MEE_OUTPUT_DIR}/mee.out 2>&1" &
+			${MEECONNECTIONSARG} ${VERBOSE_FLAG} \
+			> ${MEE_OUTPUT_DIR}/mee.out 2>&1" &
 else
 	MARKETS="$(toml get "${CONFIGFILE}" . | jq -r '.market | length')"
 
@@ -875,6 +946,13 @@ else
 			BHPORTARG="-p ${TMP}"
 		fi
 
+		TMP="$(toml get "${CONFIGFILE}" market | \
+			jq -r ".[${INDEX}].connections")"
+		if [ "${TMP}" = "null" ]; then
+			TMP="${MARKET_CONNECTIONS}"
+		fi
+		MEECONNECTIONSARG="$(event_driven_arg -C "${TMP}")"
+
 		if [ ! "${MARKET_HOSTNAME}" = "localhost" ]; then
 			MARKET_COMMAND="${SSH} ${MARKET_HOSTNAME}"
 		else
@@ -891,7 +969,8 @@ else
 		eval "${MARKET_COMMAND} ${EGENHOME}/bin/${MARKET_PROGRAM} \
 				${MEEPORTARG} -h ${BROKERAGE_HOSTNAME} ${BHPORTARG} \
 				-c ${CUSTOMERS_INSTANCE} -t ${CUSTOMERS_TOTAL} \
-				-i ${EGENHOME}/flat_in -o ${TMPDIR} > ${TMPDIR}/mee.out 2>&1" &
+				${MEECONNECTIONSARG} -i ${EGENHOME}/flat_in -o ${TMPDIR} \
+				> ${TMPDIR}/mee.out 2>&1" &
 	done
 fi
 
@@ -912,7 +991,7 @@ if [ "${CONFIGFILE}" = "" ]; then
 			-t ${CUSTOMERS_TOTAL} -f ${SCALE_FACTOR} -w ${ITD} -d ${DURATION} \
 			-y ${SLEEPY} -u ${USERS} -n ${PACING_DELAY} ${SEEDARG} \
 			-i ${EGENHOME}/flat_in -o ${DRIVER_OUTPUT_DIR} \
-			> ${DRIVER_OUTPUT_DIR}/driver.out 2>&1" &
+			${DRIVERPROCESSESARG} > ${DRIVER_OUTPUT_DIR}/driver.out 2>&1" &
 	DCMPID="${!}"
 
 	echo
@@ -948,6 +1027,13 @@ else
 			SLEEPY="${S}"
 		fi
 
+		TMP="$(toml get "${CONFIGFILE}" driver | \
+			jq -r ".[${INDEX}].processes")"
+		if [ "${TMP}" = "null" ]; then
+			TMP="${DRIVER_PROCESSES}"
+		fi
+		DRIVERPROCESSESARG="$(event_driven_arg -F "${TMP}")"
+
 		DRIVERLIST="${DRIVERLIST} ${DRIVER_HOSTNAME}"
 		BROKERAGELIST="${BROKERAGELIST} ${BROKERAGE_HOSTNAME}"
 
@@ -968,7 +1054,8 @@ else
 				-c ${CUSTOMERS_INSTANCE} -t ${CUSTOMERS_TOTAL} \
 				-f ${SCALE_FACTOR} -w ${ITD} -d ${DURATION} -y ${SLEEPY} \
 				-u ${U} -n ${PACING_DELAY} ${SEEDARG} -i ${EGENHOME}/flat_in \
-				-o ${TMPDIR} > ${TMPDIR}/driver.out 2>&1" &
+				-o ${TMPDIR} ${DRIVERPROCESSESARG} \
+				> ${TMPDIR}/driver.out 2>&1" &
 	done
 
 	echo

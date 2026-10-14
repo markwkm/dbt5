@@ -40,6 +40,9 @@ users = 1
 # Milliseconds of sleep between users starting.
 #user_creation_delay = 1000
 
+# Event-driven driver processes per processor.
+#processes = 1
+
 # Need at least one Market Exchange.
 [[market]]
 # Market Exchange server hostname of IP address to start Market Exchange.
@@ -53,6 +56,10 @@ brokerage_addr = "brokerage1"
 
 # Brokerage House port.
 #brokerage_port = 30000
+
+# Event-driven Market Exchange connections to the Brokerage House,
+# by default the number of processors.
+#connections = 8
 
 # Need at least one Brokerage House.
 
@@ -74,6 +81,9 @@ market_addr = "market1"
 
 # Market Exchange port.
 #market_port = 30010
+
+# Event-driven Brokerage House worker processes per processor.
+#processes = 1
 
 # Define additional database servers not previously defined in [[brokerage]] 
 # sections for stats collection.

@@ -49,7 +49,11 @@ Each of the three programs is also built a second time to use libev event loops
 in place of threads.  The event driven programs accept the same options as the
 threaded programs, plus the options that this section describes.  The workload
 runner, **dbt5 run**, starts the threaded programs by default.  With
-``--mode=event-driven``, it starts the event driven programs instead.
+``--mode=event-driven``, it starts the event driven programs instead.  In that
+mode, the runner passes its ``--driver-processes`` and
+``--brokerage-processes`` options to the ``-F`` options of the driver and the
+Brokerage House, and its ``--market-connections`` option to the ``-C`` option
+of the Market Exchange.
 
 The event driven driver, **DriverMain2**, forks one process for each
 processor that it may run on, pins each process to its processor, and divides
