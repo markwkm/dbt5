@@ -40,6 +40,7 @@ OPTIONS
 --help  This usage message.  Or **-?**.
 -h HOSTNAME  Database *hostname*, default localhost.
 -l DELAY  Pacing *delay* in seconds, default 0.
+--mode=MODE  Run the threaded or event-driven programs, default threaded.
 -n NAME  Database *name*, default dbt5.
 --privileged  Run test as a privileged database user.
 --profile  Profile system shortly after ramping up.
@@ -94,6 +95,9 @@ This is an example::
 
     # Scale factor, i.e. number of customers per TRTPS
     #scale_factor = 500
+
+    # Run the threaded or event-driven programs.
+    #mode = "threaded"
 
     # Need at least one Driver.
     [[driver]]

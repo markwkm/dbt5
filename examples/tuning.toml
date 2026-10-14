@@ -27,6 +27,9 @@ duration = 120
 # Scale factor, i.e. number of customers per TRTPS
 #scale_factor = 500
 
+# Run the threaded or event-driven programs.
+#mode = "threaded"
+
 # Need at least one Driver.
 [[driver]]
 # Driver server hostname of IP to connect to.

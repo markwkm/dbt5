@@ -10,6 +10,8 @@ vX.Y.Z (YYYY-MM-DD)
 - Add MarketExchangeMain2, a Market Exchange that uses a libev event loop
   instead of threads, and sends Trade-Result and Market-Feed transactions over
   several connections to the Brokerage House
+- run: select threaded or event driven mode with the --mode option or the mode
+  setting of the configuration file
 
 v0.10.14 (2026-08-11)
 
