@@ -46,9 +46,14 @@ services:
       - sh
       - -c
       - |
+        case "${MODE:-threaded}" in
+          threaded) SUFFIX= ;;
+          event-driven) SUFFIX=2 ;;
+          *) echo "MODE must be threaded or event-driven" >&2; exit 1 ;;
+        esac
         ln -sf /dev/stderr /tmp/BrokerageHouse_Error.log
-        exec /opt/egen/bin/BrokerageHouseMain -h database -m market -d dbt5 \
-            -o /tmp
+        exec /opt/egen/bin/BrokerageHouseMain$${SUFFIX} -h database \
+            -m market -d dbt5 -o /tmp
 
   market:
     image: dbt5:${PGVER:-18}
@@ -65,10 +70,15 @@ services:
       - sh
       - -c
       - |
+        case "${MODE:-threaded}" in
+          threaded) SUFFIX= ;;
+          event-driven) SUFFIX=2 ;;
+          *) echo "MODE must be threaded or event-driven" >&2; exit 1 ;;
+        esac
         ln -sf /dev/stderr /tmp/error-me-1.log
         ln -sf /dev/stdio /tmp/MarketExchange.log
-        exec /opt/egen/bin/MarketExchangeMain -h broker -i /opt/egen/flat_in \
-            -t ${CUSTOMERS:-1000} -o /tmp/market
+        exec /opt/egen/bin/MarketExchangeMain$${SUFFIX} -h broker \
+            -i /opt/egen/flat_in -t ${CUSTOMERS:-1000} -o /tmp/market
 
   load:
     profiles: [manual]
@@ -111,6 +121,11 @@ services:
       - sh
       - -c
       - |
+        case "${MODE:-threaded}" in
+          threaded) SUFFIX= ;;
+          event-driven) SUFFIX=2 ;;
+          *) echo "MODE must be threaded or event-driven" >&2; exit 1 ;;
+        esac
         OUTDIR=/tmp/results/$$(date +%Y%m%d%H%M%S)
         mkdir -p "$$OUTDIR"
         cd "$$OUTDIR"
@@ -121,9 +136,9 @@ services:
           done
           sleep 1
         done) &
-        /opt/egen/bin/DriverMain -h broker -i /opt/egen/flat_in -o "$$OUTDIR" \
-            -t ${CUSTOMERS:-1000} -w ${DAYS:-1} -f ${SCALEFACTOR:-1} \
-            -u ${USERS:-1} "$$@"
+        /opt/egen/bin/DriverMain$${SUFFIX} -h broker -i /opt/egen/flat_in \
+            -o "$$OUTDIR" -t ${CUSTOMERS:-1000} -w ${DAYS:-1} \
+            -f ${SCALEFACTOR:-1} -u ${USERS:-1} "$$@"
         cp /tmp/market/mix-me*.log "$$OUTDIR/"
       - --
 

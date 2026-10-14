@@ -59,6 +59,8 @@ adjusted with environment variables:
 
 * `CUSTOMERS` - The total number of customer, must be a multiple of 1000.
 * `DAYS` - Initial trade days.
+* `MODE` - Whether to run the threaded or the event driven Brokerage House,
+  Market Exchange, and driver: `threaded`, the default, or `event-driven`.
 * `SCALEFACTOR` - The number of customers per trade results transactions per
   second.
 * `USERS` - The number of users to emulate.
